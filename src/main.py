@@ -17,7 +17,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 
-from astropy.cosmology import FlatLambdaCDM, WMAP7
+from astropy.cosmology import WMAP7
 import astropy.units as u
 
 from modules.spline import *
@@ -280,7 +280,7 @@ plt.figure(figsize=(8, 6))
 plt.subplot(111, projection="aitoff")
 plt.scatter(arr_ang_pos_acc[:,1], arr_ang_pos_acc[:,0], marker = '.', c=arr_time, cmap="viridis", s = (arr_mass_acc/max(arr_mass_acc))**(2/5)*150)
 plt.rcParams['axes.titley'] = 1.1
-plt.title("The accretion velocity distribution of massive subhalos of {halo_name}".format(halo_name=suite_name))
+plt.title("The accretion position distribution of massive subhalos of {halo_name}".format(halo_name=suite_name))
 plt.grid(True)
 clb = plt.colorbar(orientation="horizontal", ticks=[-14, -12, -10,-8,-6,-4,-2,0])
 _ = clb.ax.set_title('Lookback time')
@@ -316,7 +316,7 @@ plt.text(-1, 0.8, "kolmogorov probability is {:.2g}".format(ks_uniformity_test(d
 plt.savefig("../../result/data/{}/cumulative_angular_distribution_of_{}.pdf".format(suite_name,suite_name))
 
 
-# In[21]:
+# In[16]:
 
 
 if not executed_as_python:
@@ -327,12 +327,12 @@ if not executed_as_python:
     reshape_arr_pos_acc = arr_pos_acc.T
     reshape_arr_vec_acc = arr_vec_acc.T
 
-    x = reshape_arr_pos_acc[0][0:100]
-    y = reshape_arr_pos_acc[1][0:100]
-    z = reshape_arr_pos_acc[2][0:100]
-    u = reshape_arr_vec_acc[0][0:100]
-    v = reshape_arr_vec_acc[1][0:100]
-    w = reshape_arr_vec_acc[2][0:100]
+    x = reshape_arr_pos_acc[0]
+    y = reshape_arr_pos_acc[1]
+    z = reshape_arr_pos_acc[2]
+    u = reshape_arr_vec_acc[0]
+    v = reshape_arr_vec_acc[1]
+    w = reshape_arr_vec_acc[2]
     
     c = arr_time
     c = (c.ravel() - c.min()) / c.ptp()
@@ -350,7 +350,7 @@ if not executed_as_python:
     plt.show()
 
 
-# In[22]:
+# In[17]:
 
 
 if not executed_as_python:
@@ -361,12 +361,12 @@ if not executed_as_python:
     reshape_arr_pos_cur = arr_pos_cur.T
     reshape_arr_vec_cur = arr_vec_cur.T
 
-    x = reshape_arr_pos_cur[0][0:100]
-    y = reshape_arr_pos_cur[1][0:100]
-    z = reshape_arr_pos_cur[2][0:100]
-    u = reshape_arr_vec_cur[0][0:100]
-    v = reshape_arr_vec_cur[1][0:100]
-    w = reshape_arr_vec_cur[2][0:100]
+    x = reshape_arr_pos_cur[0]
+    y = reshape_arr_pos_cur[1]
+    z = reshape_arr_pos_cur[2]
+    u = reshape_arr_vec_cur[0]
+    v = reshape_arr_vec_cur[1]
+    w = reshape_arr_vec_cur[2]
     
 #     c = arr_time
 #     c = (c.ravel() - c.min()) / c.ptp()
@@ -395,12 +395,12 @@ if not executed_as_python:
     reshape_arr_pos_cur_dis = arr_pos_cur_dis.T
     reshape_arr_vec_cur_dis = arr_vec_cur_dis.T
 
-    x = reshape_arr_pos_cur_dis[0][0:100]
-    y = reshape_arr_pos_cur_dis[1][0:100]
-    z = reshape_arr_pos_cur_dis[2][0:100]
-    u = reshape_arr_pos_cur_dis[0][0:100]
-    v = reshape_arr_vec_cur_dis[1][0:100]
-    w = reshape_arr_vec_cur_dis[2][0:100]
+    x = reshape_arr_pos_cur_dis[0]
+    y = reshape_arr_pos_cur_dis[1]
+    z = reshape_arr_pos_cur_dis[2]
+    u = reshape_arr_pos_cur_dis[0]
+    v = reshape_arr_vec_cur_dis[1]
+    w = reshape_arr_vec_cur_dis[2]
     
 #     c = arr_time
 #     c = (c.ravel() - c.min()) / c.ptp()
@@ -461,13 +461,13 @@ def init():
     return scats, scats2
 
 def prep_data(i):
-    mass = (np.flip(data['Mvir'], axis = 1).T)[i][[0]+arr_row][0:100]
+    mass = (np.flip(data['Mvir'], axis = 1).T)[i][[0]+arr_row]
     non_zero_index = mass > 0
-    scale = (np.flip(data['scale'], axis = 1).T)[i][[0]+arr_row][0:100][non_zero_index]
-    x = (np.flip(data['X'], axis = 1).T)[i][[0]+arr_row][0:100][non_zero_index]*scale
-    y = (np.flip(data['Y'], axis = 1).T)[i][[0]+arr_row][0:100][non_zero_index]*scale
-    z = (np.flip(data['Z'], axis = 1).T)[i][[0]+arr_row][0:100][non_zero_index]*scale
-    rvir = (np.flip(data['Rvir'], axis = 1).T)[i][[0]+arr_row][0:100][non_zero_index]*scale
+    scale = (np.flip(data['scale'], axis = 1).T)[i][[0]+arr_row][non_zero_index]
+    x = (np.flip(data['X'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
+    y = (np.flip(data['Y'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
+    z = (np.flip(data['Z'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
+    rvir = (np.flip(data['Rvir'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
     mass = mass[non_zero_index]
     return mass, x, y, z, rvir, scale
     
@@ -527,22 +527,33 @@ if executed_as_python:
 anim.save('../../result/data/{}/accretion_animation_of_{}.gif'.format(suite_name, suite_name), writer='ffmpeg')
 
 
-# In[ ]:
+# In[33]:
 
 
+arr_rms = []
+zreds_ = []
 
+for i in range(75):
+    mass, x, y, z, rvir, scale = prep_data(i)
+    if (len(mass) != 0):
+        pos = np.array([x,y,z]).T
+        zreds_.append(1/scale[0]-1)
+        _, rms = get_smallest_rms(pos)
+        arr_rms.append(rms)
 
+arr_rms = np.array(arr_rms)
+arr_time_ = np.array(WMAP7.lookback_time(zreds_))
 
-# In[ ]:
+fig, ax = plt.subplots(figsize=(8, 6))
 
+plt.scatter(arr_time_, arr_rms, label="rms height".format(suite_name=suite_name))
+plt.legend(loc='upper right')
+ax.set_xlabel('Lookback time (Gyrs)')
+ax.set_ylabel('rms (Mpc)')
+ax.set_title('rms height evolution of subhalos of {suite_name}'.format(suite_name=suite_name))
+ax.invert_xaxis()
 
-
-
-
-# In[ ]:
-
-
-
+plt.savefig("../../result/data/{}/rms_height_evolution_of_subhalos_of_{}.pdf".format(suite_name,suite_name))
 
 
 # In[ ]:
