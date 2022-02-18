@@ -31,9 +31,10 @@ import __main__
 
 
 executed_as_python = hasattr(__main__, '__file__')
-
+saveimage = False
 if executed_as_python:
     matplotlib.use('Agg')
+    saveimage = True
 
 
 # In[3]:
@@ -232,8 +233,8 @@ plt.grid(True)
 
 # if executed_as_python:
 #     plt.close()
-    
-plt.savefig("../../result/data/{}/current_velocity_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
+if saveimage:
+    plt.savefig("../../result/data/{}/current_velocity_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
 
 
 # In[12]:
@@ -248,8 +249,8 @@ plt.grid(True)
 
 # if executed_as_python:
 #     plt.close()
-    
-plt.savefig("../../result/data/{}/current_position_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
+if saveimage:
+    plt.savefig("../../result/data/{}/current_position_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
 
 
 # In[13]:
@@ -269,8 +270,8 @@ _ = clb.ax.set_xticklabels([14,12,10,8,6,4,2,0])
 # if executed_as_python:
 #     plt.close()
     
-
-plt.savefig("../../result/data/{}/accretion_velocity_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
+if saveimage:
+    plt.savefig("../../result/data/{}/accretion_velocity_distribution_of_subhalos_of_{}.pdf".format(suite_name, suite_name))
 
 
 # In[14]:
@@ -286,8 +287,8 @@ clb = plt.colorbar(orientation="horizontal", ticks=[-14, -12, -10,-8,-6,-4,-2,0]
 _ = clb.ax.set_title('Lookback time')
 _ = clb.ax.set_xlabel('Gyrs', loc='right')
 _ = clb.ax.set_xticklabels([14,12,10,8,6,4,2,0])
-
-plt.savefig("../../result/data/{}/accretion_position_distribution_of_subhalos_of_{}.pdf".format(suite_name,suite_name))
+if saveimage:
+    plt.savefig("../../result/data/{}/accretion_position_distribution_of_subhalos_of_{}.pdf".format(suite_name,suite_name))
 
 
 # In[15]:
@@ -311,9 +312,8 @@ plt.rcParams['axes.titley'] = 1
 plt.legend(loc='upper left')
 plt.text(-1, 0.8, "kolmogorov probability is {:.2g}".format(ks_uniformity_test(dist_pos)))
 
-# if executed_as_python:
-#     plt.close()
-plt.savefig("../../result/data/{}/cumulative_angular_distribution_of_{}.pdf".format(suite_name,suite_name))
+if saveimage:
+    plt.savefig("../../result/data/{}/cumulative_angular_distribution_of_{}.pdf".format(suite_name,suite_name))
 
 
 # In[16]:
@@ -444,6 +444,37 @@ plt.savefig("../../result/data/{}/mass_evolution_of_{}.pdf".format(suite_name,su
 # In[20]:
 
 
+# new_arr_row = []
+# print(arr_time)
+# for i in arr_row:
+#     x0 = data['X'][0][0]
+#     y0 = data['Y'][0][0]
+#     z0 = data['Z'][0][0]
+#     xi = data['X'][i][0]
+#     yi = data['Y'][i][0]
+#     zi = data['Z'][i][0]
+#     temp = ((x0-xi)**2+(y0-yi)**2+(z0-zi)**2)**(1/2)
+    
+#     if temp < 0.3:
+#         new_arr_row.append(i)
+
+        
+def prep_data(i, arr_row_):
+    ## x,y,z in physical Mpc\
+    mass = (np.flip(data['Mvir'], axis = 1).T)[i][[0]+arr_row_]
+    non_zero_index = mass > 0
+    scale = (np.flip(data['scale'], axis = 1).T)[i][[0]+arr_row_][non_zero_index]
+    x = (np.flip(data['X'], axis = 1).T)[i][[0]+arr_row_][non_zero_index]*scale
+    y = (np.flip(data['Y'], axis = 1).T)[i][[0]+arr_row_][non_zero_index]*scale
+    z = (np.flip(data['Z'], axis = 1).T)[i][[0]+arr_row_][non_zero_index]*scale
+    rvir = (np.flip(data['Rvir'], axis = 1).T)[i][[0]+arr_row_][non_zero_index]*scale
+    mass = mass[non_zero_index]
+    return mass, x, y, z, rvir, scale
+
+
+# In[21]:
+
+
 # name of 2D slice go here
 
 max_mass = max(data['Mvir'][0])
@@ -460,19 +491,10 @@ planes = ['XY','YZ','ZX']
 def init():
     return scats, scats2
 
-def prep_data(i):
-    mass = (np.flip(data['Mvir'], axis = 1).T)[i][[0]+arr_row]
-    non_zero_index = mass > 0
-    scale = (np.flip(data['scale'], axis = 1).T)[i][[0]+arr_row][non_zero_index]
-    x = (np.flip(data['X'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
-    y = (np.flip(data['Y'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
-    z = (np.flip(data['Z'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
-    rvir = (np.flip(data['Rvir'], axis = 1).T)[i][[0]+arr_row][non_zero_index]*scale
-    mass = mass[non_zero_index]
-    return mass, x, y, z, rvir, scale
+
     
 def animate(i):
-    mass, x, y, z, rvir, scale = prep_data(i)
+    mass, x, y, z, rvir, scale = prep_data(i, arr_row)
     pos = [[x,y],[y,z],[z,x]]
     if len(scale) > 0:
         redshift = 1/scale-1        
@@ -494,7 +516,7 @@ def animate(i):
     return scats, scats2
 
 
-mass, x, y, z, rvir, scale = prep_data(-1)
+mass, x, y, z, rvir, scale = prep_data(-1, arr_row)
 pos = [[x,y],[y,z],[z,x]]
 
 for i in range(3):
@@ -524,36 +546,54 @@ anim = FuncAnimation(fig, animate, init_func=init,
 if executed_as_python:
     plt.close()
 
-anim.save('../../result/data/{}/accretion_animation_of_{}.gif'.format(suite_name, suite_name), writer='ffmpeg')
+anim.save(f'../../result/data/{suite_name}/accretion_animation_of_{suite_name}.gif', writer='ffmpeg')
+
+
+# In[28]:
+
+
+arr_rms = []
+arr_time_ = []
+zreds_ = []
+
+for i in range(75):
+    new_arr_row = []
+    scale0 = data['scale'][0][74-i]
+    if scale0 > 0:
+        _t0_ = float(np.array(WMAP7.lookback_time(1/scale0-1)))
+        for j in range(len(arr_row)):
+            row = arr_row[j]
+            _t_ = -arr_time[j]
+            if _t_ > _t0_ and (data['X'][0][0]-data['X'][row][0])**2+(data['Y'][0][0]-data['Y'][row][0])**2+(data['Z'][0][0]-data['Z'][row][0])**2 < 0.09:
+                new_arr_row.append(row)
+
+        mass, x, y, z, rvir, scale = prep_data(i, new_arr_row)
+        if (len(mass) != 0):
+            pos = np.array([x[1:],y[1:],z[1:]]).T
+            if len(x) > 1:
+                arr_time_.append(_t0_)
+                _, rms = get_smallest_rms(pos)
+                arr_rms.append(rms/rvir[0]*1000)
+
+arr_rms = np.array(arr_rms)
+arr_time_ = np.array(arr_time_)
 
 
 # In[33]:
 
 
-arr_rms = []
-zreds_ = []
-
-for i in range(75):
-    mass, x, y, z, rvir, scale = prep_data(i)
-    if (len(mass) != 0):
-        pos = np.array([x,y,z]).T
-        zreds_.append(1/scale[0]-1)
-        _, rms = get_smallest_rms(pos)
-        arr_rms.append(rms)
-
-arr_rms = np.array(arr_rms)
-arr_time_ = np.array(WMAP7.lookback_time(zreds_))
 
 fig, ax = plt.subplots(figsize=(8, 6))
 
 plt.scatter(arr_time_, arr_rms, label="rms height".format(suite_name=suite_name))
 plt.legend(loc='upper right')
+# plt.yscale('log')
 ax.set_xlabel('Lookback time (Gyrs)')
-ax.set_ylabel('rms (Mpc)')
+ax.set_ylabel('rms (rvir)')
 ax.set_title('rms height evolution of subhalos of {suite_name}'.format(suite_name=suite_name))
 ax.invert_xaxis()
 
-plt.savefig("../../result/data/{}/rms_height_evolution_of_subhalos_of_{}.pdf".format(suite_name,suite_name))
+plt.savefig(f"../../result/data/{suite_name}/rms_height_evolution_of_subhalos_of_{suite_name}.pdf")
 
 
 # In[ ]:
