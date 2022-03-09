@@ -101,7 +101,7 @@ def get_num_time(data):
     return len(data['X'][0])
 
 def extract_elvis_data(data, row):
-    non_zero_index = 74
+    non_zero_index = len(data['X'][0])-1
     while data['Mvir'][row][non_zero_index] == 0:
         non_zero_index -= 1
     non_zero_index += 1

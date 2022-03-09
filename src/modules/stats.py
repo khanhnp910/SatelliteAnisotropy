@@ -43,11 +43,11 @@ def get_rms(pos, normal_vector):
     rms = (1/n*np.sum((temp-coef)**2))**(1/2)
     return rms
 
-def get_smallest_rms(pos):
+def get_smallest_rms(pos, num_random_points=10000):
     """
     pos: (n,3) array, n points, each with 3 pos
     """
-    arr = np.random.rand(10000,2)*np.array([np.pi/2, 2*np.pi])
+    arr = np.random.rand(num_random_points,2)*np.array([np.pi/2, 2*np.pi])
     normal_vectors = np.array(list(map(to_normal_vector, arr)))
     rms = np.array(list(map(lambda normal_vector: get_rms(pos, normal_vector), normal_vectors)))
     
