@@ -203,7 +203,7 @@ def make_animations(suite_name, data, arr_row, num_time, saveimage):
 
   return anim
 
-def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_name, saveimage = False):
+def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_name, isRemovingOutliers = False, saveimage = False):
   Xs = []
   Ys = []
   Zs = []
@@ -243,17 +243,17 @@ def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_n
     if len(pos) < 4:
       arr_rms.append(0)
     else:
-      rms = get_smallest_rms(pos)
+      rms = get_smallest_rms(pos, isRemovingOutliers=isRemovingOutliers)
       arr_rms.append(rms[1])
 
-  fig, ax = plt.subplots(figsize=(8, 6))
+  _, ax = plt.subplots(figsize=(8, 6))
 
   plt.scatter(lookback_time0, arr_rms, label="rms height".format(suite_name=suite_name))
-  plt.legend(loc='upper right')
+  plt.legend(loc='upper left')
   # plt.yscale('log')
   ax.set_xlabel('Lookback time (Gyrs)')
   ax.set_ylabel('rms (rvir)')
-  ax.set_title('rms height evolution of subhalos of {suite_name}'.format(suite_name=suite_name))
+  ax.set_title('rms height evolution of subhalos of {suite_name}{temp}'.format(suite_name=suite_name, temp = "" if not isRemovingOutliers else " without outliers"))
   ax.invert_xaxis()
 
   if saveimage:

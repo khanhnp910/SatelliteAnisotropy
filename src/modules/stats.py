@@ -33,23 +33,29 @@ def to_normal_vector(loc):
   z = np.cos(theta)
   return np.array([x,y,z])
 
-def get_rms(pos, normal_vector):
+def get_rms(pos, normal_vector, isRemovingOutliers = False):
   """
   pos: (n,3) array, n points, each with 3 pos
+  isRemovingOutliers: True if only considering the 16-84 percentile (1 sigma)
   """
   n = len(pos)
   temp = np.sum(pos*normal_vector, axis=1)
+  if isRemovingOutliers:
+    lower = np.percentile(temp, 16)
+    upper = np.percentile(temp, 84)
+    indices_between = np.logical_and(temp > lower, temp < upper)
+    temp = temp[indices_between]
   coef = np.mean(temp)
   rms = (1/n*np.sum((temp-coef)**2))**(1/2)
   return rms
 
-def get_smallest_rms(pos, num_random_points=10000):
+def get_smallest_rms(pos, isRemovingOutliers = False, num_random_points=10000):
   """
   pos: (n,3) array, n points, each with 3 pos
   """
   arr = np.random.rand(num_random_points,2)*np.array([np.pi/2, 2*np.pi])
   normal_vectors = np.array(list(map(to_normal_vector, arr)))
-  rms = np.array(list(map(lambda normal_vector: get_rms(pos, normal_vector), normal_vectors)))
+  rms = np.array(list(map(lambda normal_vector: get_rms(pos, normal_vector, isRemovingOutliers), normal_vectors)))
   
   i = np.argmin(rms)
   
