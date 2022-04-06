@@ -111,6 +111,11 @@ def plot_quiver(suite_name, arr_pos, arr_vec, title, arr_time = None, isColor = 
 
   plt.show()
 
+def plot3D(suite_name, X, Y, Z):
+  ax = plt.figure().add_subplot(projection='3d')
+  ax.set_box_aspect(aspect = (1,1,1))
+  ax.scatter(X,Y,Z)
+
 def plot_evolution(suite_name, lookback_time, coefs, prop, saveimage = False):
   t_0 = min(lookback_time)
   t_1 = max(lookback_time)
@@ -203,7 +208,7 @@ def make_animations(suite_name, data, arr_row, num_time, saveimage):
 
   return anim
 
-def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_name, isRemovingOutliers = False, saveimage = False):
+def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_name, saveimage = False):
   Xs = []
   Ys = []
   Zs = []
@@ -243,8 +248,8 @@ def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_n
     if len(pos) < 4:
       arr_rms.append(0)
     else:
-      rms = get_smallest_rms(pos, isRemovingOutliers=isRemovingOutliers)
-      arr_rms.append(rms[1])
+      rms = get_smallest_rms(pos)
+      arr_rms.append(rms)
 
   _, ax = plt.subplots(figsize=(8, 6))
 
@@ -253,7 +258,7 @@ def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_n
   # plt.yscale('log')
   ax.set_xlabel('Lookback time (Gyrs)')
   ax.set_ylabel('rms (rvir)')
-  ax.set_title('rms height evolution of subhalos of {suite_name}{temp}'.format(suite_name=suite_name, temp = "" if not isRemovingOutliers else " without outliers"))
+  ax.set_title('rms height evolution of subhalos of {suite_name}'.format(suite_name=suite_name))
   ax.invert_xaxis()
 
   if saveimage:

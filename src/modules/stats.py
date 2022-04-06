@@ -33,33 +33,56 @@ def to_normal_vector(loc):
   z = np.cos(theta)
   return np.array([x,y,z])
 
-def get_rms(pos, normal_vector, isRemovingOutliers = False):
+def get_rms(pos, normal_vectors):
   """
   pos: (n,3) array, n points, each with 3 pos
-  isRemovingOutliers: True if only considering the 16-84 percentile (1 sigma)
+  normal_vectors: (m, 3) array, m normal vectors, each with 3 pos
   """
   n = len(pos)
-  temp = np.sum(pos*normal_vector, axis=1)
-  if isRemovingOutliers:
-    lower = np.percentile(temp, 16)
-    upper = np.percentile(temp, 84)
-    indices_between = np.logical_and(temp > lower, temp < upper)
-    temp = temp[indices_between]
-  coef = np.mean(temp)
-  rms = (1/n*np.sum((temp-coef)**2))**(1/2)
+  temp = np.matmul(pos, normal_vectors.T)
+  coef = np.mean(temp, axis = 0)
+  rms = (1/n*np.sum((temp-coef)**2, axis=0))**(1/2)
   return rms
 
-def get_smallest_rms(pos, isRemovingOutliers = False, num_random_points=10000):
+def get_rms_and_coef(pos, normal_vectors):
+  """
+  pos: (n,3) array, n points, each with 3 pos
+  normal_vectors: (m, 3) array, m normal vectors, each with 3 pos
+  """
+  n = len(pos)
+  temp = np.matmul(pos, normal_vectors.T)
+  coef = np.mean(temp, axis = 0)
+  rms = (1/n*np.sum((temp-coef)**2, axis=0))**(1/2)
+  return rms, coef
+
+def get_smallest_rms(pos, num_random_points=10000):
   """
   pos: (n,3) array, n points, each with 3 pos
   """
-  arr = np.random.rand(num_random_points,2)*np.array([np.pi/2, 2*np.pi])
-  normal_vectors = np.array(list(map(to_normal_vector, arr)))
-  rms = np.array(list(map(lambda normal_vector: get_rms(pos, normal_vector, isRemovingOutliers), normal_vectors)))
+  # arr = np.random.rand(num_random_points,2)*np.array([np.pi/2, 2*np.pi])
+  theta = np.random.rand(num_random_points)*np.pi/2
+  phi = np.random.rand(num_random_points)*2*np.pi
+  z = np.cos(theta)
+  sintheta = np.sin(theta)
+  y = sintheta * np.cos(phi)
+  x = sintheta * np.sin(phi)
+  normal_vectors = np.array([x,y,z]).T
+  rms = get_rms(pos, normal_vectors)
   
-  i = np.argmin(rms)
+  return rms.min()
+
+def get_min_vec(pos, num_random_points=10000):
+  theta = np.random.rand(num_random_points)*np.pi/2
+  phi = np.random.rand(num_random_points)*2*np.pi
+  z = np.cos(theta)
+  sintheta = np.sin(theta)
+  y = sintheta * np.cos(phi)
+  x = sintheta * np.sin(phi)
+  normal_vectors = np.array([x,y,z]).T
+  rms, coef = get_rms_and_coef(pos, normal_vectors)
+  i = rms.argmin()
+  return rms[i], normal_vectors[i], coef[i] 
   
-  return normal_vectors[i], rms[i]
 
 def generate_random_points_with_rms():
   rms = np.random.rand()
@@ -79,7 +102,6 @@ def generate_random_points_with_rms():
   print(get_rms(pos, normal_vector)/(a**2+b**2+c**2)**(1/2))
   print(rms)
   print(normal_vector)
-  guessed_vector, guessed_rms = get_smallest_rms(pos)
-  guess_rms = guessed_rms/(a**2+b**2+c**2)**(1/2)
-  print(guessed_vector)
+  guessed_rms = get_smallest_rms(pos)
+  # guess_rms = guessed_rms/(a**2+b**2+c**2)**(1/2)
   print(guessed_rms)
