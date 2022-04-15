@@ -1,10 +1,11 @@
 import numpy as np
 from modules.spline import eval_new_spline, eval_spline
-from modules.helper_functions import extract_data, prep_data
-from modules.stats import get_smallest_rms
+from modules.helper_functions import extract_data, prep_data, extract_inside_at_timestep, to_spherical
 import matplotlib.pyplot as plt
-from modules.stats import ks_uniformity_test
+from modules.stats import ks_uniformity_test, sample_spherical_pos, gen_dist, get_smallest_rms
 from matplotlib.animation import FuncAnimation
+from scipy.stats import gaussian_kde
+import pandas as pd
 
 def show_track(data, row, ax = None):
   _, lookback_time, X, Y, Z, _, _, _, coefs_X, coefs_Y, coefs_Z = extract_data(data, row, isCoefsPos = True)
@@ -42,14 +43,14 @@ def show_1D_track(data, row, arg = 'X', ax = None):
   ax.plot(t, v, color='r')
 
 
-def plot_spherical_coordinates(suite_name, spherical_coors, arr_mass, title, img_name, arr_time = None, isColorBar = False, saveimage = False):
+def plot_spherical_coordinates(spherical_coors, arr_mass, title, img_name, arr_time = None, isColorBar = False, saveimage = False):
   plt.figure(figsize=(8, 6)).add_subplot(111, projection="aitoff")
   if isColorBar:
     plt.scatter(spherical_coors[:,1], spherical_coors[:,0], marker = '.', c = arr_time, cmap="viridis", s = (arr_mass/max(arr_mass))**(2/5)*200)
   else:
     plt.scatter(spherical_coors[:,1], spherical_coors[:,0], marker = '.', s = (arr_mass/max(arr_mass))**(2/5)*200)
   plt.rcParams['axes.titley'] = 1.1
-  plt.title(title.format(suite_name))
+  plt.title(title)
   plt.grid(True)
 
   if isColorBar:
@@ -59,31 +60,33 @@ def plot_spherical_coordinates(suite_name, spherical_coors, arr_mass, title, img
     _ = clb.ax.set_xticklabels([14,12,10,8,6,4,2,0])
 
   if saveimage:
-    plt.savefig(img_name.format(suite_name, suite_name))
+    plt.savefig(img_name)
 
-def plot_kolmogorov(suite_name, arr, title, img_name, saveimage = False):
+def plot_kolmogorov(arr, img_name, title = "", ax = None, saveimage = False):
   random_phi = np.random.rand()*2*np.pi-np.pi
-  random_theta = np.pi/2-np.random.rand()*np.pi
+  random_theta = np.pi/2-np.arccos(1-2*np.random.rand())
 
   direction = np.array([-np.cos(random_theta)*np.cos(random_phi),-np.cos(random_theta)*np.sin(random_phi),np.sin(random_theta)])
   dist_pos = np.sum(arr*direction, axis = 1)
   n = len(dist_pos)
 
-  plt.figure(figsize=(8, 6))
+  if ax is None:
+    ax = plt.figure(figsize=(8, 6)).add_subplot()
 
-  _, _, _ = plt.hist(dist_pos, bins = n, range=(-1,1), density = True, cumulative=True, histtype='step', label = 'cumulative distribution of cos(theta)')
+  _, _, _ = ax.hist(dist_pos, bins = n, range=(-1,1), density = True, cumulative=True, histtype='step', label = 'cumulative distribution of cos(theta)')
   uniform = (2*np.arange(1, n+1)-n-1)/(n-1)
-  _, _, _ = plt.hist(uniform, bins=len(uniform), density = True, cumulative=True, histtype='step', label = 'expected cumulative distribution')
-  plt.title(title.format(suite_name))
+  _, _, _ = ax.hist(uniform, bins=len(uniform), density = True, cumulative=True, histtype='step', label = 'expected cumulative distribution')
+  ax.set_title(title)
   plt.rcParams['axes.titley'] = 1
-  plt.legend(loc='upper left')
-  plt.text(-1, 0.8, "kolmogorov probability is {:.2g}".format(ks_uniformity_test(dist_pos)))
+  ax.legend(loc='upper left')
+  ax.text(-1, 0.8, "kolmogorov probability is {:.2g}".format(ks_uniformity_test(dist_pos)))
 
   if saveimage:
-    plt.savefig(img_name.format(suite_name,suite_name))
+    plt.savefig(img_name)
 
-def plot_quiver(suite_name, arr_pos, arr_vec, title, arr_time = None, isColor = False):
-  ax = plt.figure().add_subplot(projection='3d')
+def plot_quiver(arr_pos, arr_vec, title = "", arr_time = None, isColor = False, ax = None):
+  if ax is None:
+    ax = plt.figure().add_subplot(projection='3d')
   ax.set_box_aspect(aspect = (1,1,1))
   reshape_arr_pos = arr_pos.T
   reshape_arr_vec = arr_vec.T
@@ -106,37 +109,38 @@ def plot_quiver(suite_name, arr_pos, arr_vec, title, arr_time = None, isColor = 
     ax.quiver(x, y, z, u, v, w, length=0.2, colors=c)
   else:
     ax.quiver(x, y, z, u, v, w, length=0.2)
-  ax.set_title(title.format(suite_name))
+  ax.set_title(title)
   
 
   plt.show()
 
-def plot3D(suite_name, X, Y, Z):
+def plot3D(X, Y, Z):
   ax = plt.figure().add_subplot(projection='3d')
   ax.set_box_aspect(aspect = (1,1,1))
   ax.scatter(X,Y,Z)
 
-def plot_evolution(suite_name, lookback_time, coefs, prop, saveimage = False):
+def plot_evolution(lookback_time, coefs, prop, label, title, imgname, ax = None, saveimage = False):
   t_0 = min(lookback_time)
   t_1 = max(lookback_time)
 
   time_range = np.linspace(t_0, t_1, 500)
   mass_range = np.array(list(map(lambda t: eval_spline(t, lookback_time, *coefs), time_range)))
 
-  _, ax = plt.subplots(figsize=(8, 6))
+  if ax is None:
+    ax = plt.figure(figsize=(8, 6)).add_subplot()
 
-  plt.plot(time_range, mass_range, label="{} of {} halo".format(prop, suite_name))
-  plt.legend(loc='upper left')
+  ax.plot(time_range, mass_range, label=label)
+  ax.legend(loc='upper left')
   ax.set_xlabel('Lookback time (Gyrs)')
-  ax.set_ylabel('{}'.format(prop)+" ($M_{\\textrm{Sun}}$)")
-  ax.set_title('{} evolution of {} halo'.format(prop, suite_name))
+  ax.set_ylabel(prop)
+  ax.set_title(title)
   ax.invert_xaxis()
 
   if saveimage:
-    plt.savefig("../../result/data/{}/{}_evolution_of_{}.pdf".format(suite_name, prop, suite_name))
+    plt.savefig(imgname)
 
-def make_animations(suite_name, data, arr_row, num_time, saveimage):
-  max_mass = max(data['Mvir'][0])
+def make_animations(data, arr_row, num_time, halo_row, img_name, saveimage=False):
+  max_mass = max(data['Mvir'][halo_row])
 
   fig, axs = plt.subplots(2,3)
   fig.set_figheight(6)
@@ -204,11 +208,11 @@ def make_animations(suite_name, data, arr_row, num_time, saveimage):
 
   
   if saveimage:
-    anim.save(f'../../result/data/{suite_name}/accretion_animation_of_{suite_name}.gif', writer='ffmpeg')
+    anim.save(img_name, writer='ffmpeg')
 
   return anim
 
-def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_name, saveimage = False):
+def plot_rms(data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, title, img_name, ax = None, saveimage = False):
   Xs = []
   Ys = []
   Zs = []
@@ -251,15 +255,173 @@ def plot_rms(suite_name, data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, img_n
       rms = get_smallest_rms(pos)
       arr_rms.append(rms)
 
-  _, ax = plt.subplots(figsize=(8, 6))
+  if ax is None:
+    ax = plt.figure(figsize=(8, 6)).add_subplot()
 
-  plt.scatter(lookback_time0, arr_rms, label="rms height".format(suite_name=suite_name))
-  plt.legend(loc='upper left')
+  ax.scatter(lookback_time0, arr_rms, label="rms height")
+  ax.legend(loc='upper left')
   # plt.yscale('log')
   ax.set_xlabel('Lookback time (Gyrs)')
   ax.set_ylabel('rms (rvir)')
-  ax.set_title('rms height evolution of subhalos of {suite_name}'.format(suite_name=suite_name))
+  ax.set_title(title)
   ax.invert_xaxis()
 
   if saveimage:
-    plt.savefig(img_name.format(suite_name, suite_name))
+    plt.savefig(img_name)
+
+def plot_distribution_rms_dispersion(suite_name, halo_row, imgname, set_title = True, show_halo = True, show_isotropized = True, show_isotropy = False, show_uniform = False, iterations = 10000, num_chosen_subhalos = 11,  ax=None, data=None, timestep=0, timedata_dir="timedata/isolated", elvis_iso_dir="../../Elvis/IsolatedTrees", saveimage=False):
+  df = pd.read_csv(timedata_dir+f'/{suite_name}.csv')
+  arr_row = np.array(df['row'])
+  
+  
+  inside_index, pos = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir, elvis_iso_dir=elvis_iso_dir)
+  size = len(pos)
+
+  if size < num_chosen_subhalos:
+    print("fewer than 11 subhalos...")
+    return
+  
+  if ax is None:
+    ax = plt.figure(figsize=(8, 6)).add_subplot()
+
+  rmss_halo = []
+  rmss_isotropized = []
+  rmss_isotropy = []
+  rmss_uniform = []
+
+  for _ in range(iterations):
+    temp_range = np.random.choice(np.arange(size), size=num_chosen_subhalos, replace=False)
+
+    pos_halo = pos[temp_range,:]
+    r_halo = np.sum(pos_halo**2, axis=1)**(1/2)
+    r_med_halo = np.median(r_halo)
+    
+    iso_pos = sample_spherical_pos(size=num_chosen_subhalos)
+
+    if show_halo:
+      rmss_halo.append(get_smallest_rms(pos_halo)/r_med_halo)
+      
+    if show_isotropized:
+      pos_isotropized = np.reshape(r_halo, (num_chosen_subhalos,1)) * iso_pos
+      rmss_isotropized.append(get_smallest_rms(pos_isotropized)/r_med_halo)
+
+    if show_isotropy:
+      r_isotropy = np.random.uniform(size=num_chosen_subhalos)
+      pos_isotropy = np.reshape(r_isotropy, (num_chosen_subhalos,1)) * iso_pos
+      rmss_isotropy.append(get_smallest_rms(pos_isotropy)/np.median(r_isotropy))
+
+    if show_uniform:
+      r_uniform = gen_dist(size=num_chosen_subhalos)
+      pos_uniform = np.reshape(r_uniform, (num_chosen_subhalos,1)) * iso_pos
+      rmss_uniform.append(get_smallest_rms(pos_uniform)/np.median(r_uniform))
+  
+  points = np.linspace(0, 1, num = 1000)
+
+  if set_title:
+    ax.set_title('The distribution of the rms dispersions')
+    ax.set_xlabel('$D_{\\textrm{rms}}/R_{\\textrm{med}}$')
+    ax.set_ylabel('P($D_{\\textrm{rms}}/R_{\\textrm{med}}$)')
+
+  max_arr = np.max(data['Mvir'][arr_row[inside_index]], axis=1)
+  argmax = np.argsort(max_arr)[-num_chosen_subhalos:]
+  pos_max = pos[argmax,:]
+  r_max = np.sum(pos_max**2, axis=1)**(1/2)
+  r_med_max = np.median(r_max)
+
+  if show_halo:
+    kernel_halo = gaussian_kde(rmss_halo)
+    ax.plot(points, kernel_halo(points), label=f"{suite_name}", color='b')
+    ax.arrow(get_smallest_rms(pos_max)/r_med_max,0,0,0.5,color='b',head_width=0.01,head_length=0.1)
+
+  if show_isotropized:
+    kernel_isotropized = gaussian_kde(rmss_isotropized)
+    ax.plot(points, kernel_isotropized(points), label=f"{suite_name} isotropized", color='r')
+    pos_max_isotropized = np.reshape(r_max, (num_chosen_subhalos,1))*sample_spherical_pos(size=num_chosen_subhalos)
+    ax.arrow(get_smallest_rms(pos_max_isotropized)/r_med_max,0,0,0.5,color='r',head_width=0.01,head_length=0.1)
+
+  if show_isotropy:
+    kernel_isotropy = gaussian_kde(rmss_isotropy)
+    ax.plot(points, kernel_isotropy(points), label=f"isotropy", color='g')
+
+  if show_uniform:
+    kernel_uniform = gaussian_kde(rmss_uniform)
+    ax.plot(points, kernel_uniform(points), label=f"uniform", color='y')
+
+  ax.legend()
+  if saveimage:
+    plt.savefig(imgname)
+  
+  
+
+def plot_orbital_poles(suite_name, arr_pos_cur, arr_vec_cur, imgname, iterations = 500000, num_chosen_subhalos=11, ax = None, saveimage=False):
+  poles = np.cross(arr_pos_cur, arr_vec_cur).T
+  temp = (np.sum(poles**2, axis = 0))**(1/2)
+  poles = np.array(poles/temp).T
+
+  min_average_poles = []
+  min_d_angles = []
+
+  if len(poles) >= num_chosen_subhalos:
+    if ax is None:
+      ax = plt.figure(figsize=(8, 6)).add_subplot(projection='aitoff')
+    for k in range(3,num_chosen_subhalos+1):
+      average_poles = []
+      d_angles = []
+      
+      for _ in range(iterations):
+        indices = np.random.choice(len(poles), k, replace=False)
+        chosen_poles = poles[indices]
+        
+        average_pole = np.mean(chosen_poles, axis = 0)
+        
+        average_pole = average_pole/np.sum(average_pole**2) ** (1/2)
+        
+        dot_prod = np.sum(average_pole * chosen_poles, axis = 1)
+        
+        angles = np.arccos(dot_prod)
+        
+        d_angle = np.mean(angles**2)**(1/2)
+        
+        average_poles.append(average_pole)
+        d_angles.append(d_angle)
+          
+      average_poles = np.array(average_poles)
+      d_angles = np.array(d_angles)
+      
+      min_index = np.argmin(d_angles)
+      
+      min_average_poles.append(average_poles[min_index])
+      min_d_angles.append(d_angles[min_index])
+    
+    count = 3
+    for average_pole, d_angle in zip(min_average_poles, min_d_angles):
+      x, y, z = average_pole
+      rho = (x**2 + y**2)**(1/2)
+      rot_matrix = np.array([[x*z/rho, y*z/rho, -rho],[-y/rho, x/rho, 0],[x,y,z]])
+      phi = np.random.uniform(size=1000)*2*np.pi
+      
+      X = np.cos(phi)*np.sin(d_angle)
+      Y = np.sin(phi)*np.sin(d_angle)
+      Z = np.cos(d_angle)* np.ones_like(X)
+      
+      pos = np.array([X,Y,Z]).T
+      
+      rot_pos = np.matmul(pos, rot_matrix)
+      
+      aitoff_phis = []
+      aitoff_thetas = []
+      
+      for i in range(1000):
+        cur = rot_pos[i]
+        aitoff_theta, aitoff_phi = to_spherical(cur[0],cur[1],cur[2])
+        aitoff_thetas.append(aitoff_theta)
+        aitoff_phis.append(aitoff_phi)
+      
+      ax.scatter(aitoff_phis, aitoff_thetas, marker = '.', label=f"k={count}")
+      ax.grid(True)
+      count += 1
+
+    ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
+
+    if saveimage:
+      plt.savefig(imgname)

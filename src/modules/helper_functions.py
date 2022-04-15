@@ -132,7 +132,7 @@ def find_time_of_accretion(data, suite_name):
   num_halos = get_num_halos(data)
   mass_cutoff = 5e8
 
-  with open(f"timedata/{suite_name}.csv", "a+", newline='') as file:
+  with open(f"timedata/isolated/{suite_name}.csv", "a+", newline='') as file:
     writer = csv.writer(file, delimiter=",")
     writer.writerow(["row", "accretion_time"])
 
@@ -170,7 +170,7 @@ def find_time_of_accretion(data, suite_name):
 
       t += lookback_time0[j-1]
 
-      with open(f"timedata/{suite_name}.csv", "a+", newline='') as file:
+      with open(f"timedata/isolated/{suite_name}.csv", "a+", newline='') as file:
         writer = csv.writer(file, delimiter=",")
         writer.writerow([i, t])
 
@@ -278,8 +278,8 @@ def prep_data(data, i, arr_row):
   return mass, x, y, z, rvir, scale
 
 
-def get_arrays(suite_name, data):
-  df = pd.read_csv(f'timedata/{suite_name}.csv')
+def get_arrays(suite_name, type_suite, data, halo_row):
+  df = pd.read_csv(f'timedata/{type_suite}/{suite_name}.csv')
   # array row of halos that 
   arr_row = np.array(df['row'])
 
@@ -307,7 +307,7 @@ def get_arrays(suite_name, data):
   arr_mass_acc = []
   arr_mass_cur = []
 
-  _, lookback_time0, X0, Y0, Z0, Vx0, Vy0, Vz0, coefs_X0, coefs_Y0, coefs_Z0, = extract_data(data, 0, isCoefsPos = True)
+  _, lookback_time0, X0, Y0, Z0, Vx0, Vy0, Vz0, coefs_X0, coefs_Y0, coefs_Z0, = extract_data(data, halo_row, isCoefsPos = True)
   for i, t in zip(arr_row, arr_time):
     _, lookback_time, X, Y, Z, Vx, Vy, Vz, Mvir, coefs_X, coefs_Y, coefs_Z, coefs_Mvir= extract_data(data, i, isCoefsPos = True, isCoefsMvir = True)
     # relative position of subhalo in the host frame at accretion
@@ -322,20 +322,20 @@ def get_arrays(suite_name, data):
     m = eval_spline(t, lookback_time, *coefs_Mvir)
     
     arr_mass_acc.append(m)
-    arr_mass_cur.append(Mvir[0])
+    arr_mass_cur.append(Mvir[halo_row])
     
     arr_ang_pos_acc.append(to_spherical(x,y,z))
     arr_ang_vec_acc.append(to_spherical(-vx, -vy, -vz))
-    arr_ang_pos_cur.append(to_spherical(X[0]-X0[0], Y[0]-Y0[0], Z[0]-Z0[0]))
-    arr_ang_vec_cur.append(to_spherical(-Vx[0]+Vx0[0], -Vy[0]+Vy0[0], -Vz[0]+Vz0[0]))
+    arr_ang_pos_cur.append(to_spherical(X[halo_row]-X0[halo_row], Y[halo_row]-Y0[halo_row], Z[halo_row]-Z0[halo_row]))
+    arr_ang_vec_cur.append(to_spherical(-Vx[halo_row]+Vx0[halo_row], -Vy[halo_row]+Vy0[halo_row], -Vz[halo_row]+Vz0[halo_row]))
 
     arr_pos_acc.append(to_direction(x,y,z))
     arr_vec_acc.append(to_direction(-vx,-vy,-vz))
-    arr_pos_cur.append(to_direction(X[0]-X0[0], Y[0]-Y0[0], Z[0]-Z0[0]))
-    arr_vec_cur.append(to_direction(-Vx[0]+Vx0[0], -Vy[0]+Vy0[0], -Vz[0]+Vz0[0]))
+    arr_pos_cur.append(to_direction(X[halo_row]-X0[halo_row], Y[halo_row]-Y0[halo_row], Z[halo_row]-Z0[halo_row]))
+    arr_vec_cur.append(to_direction(-Vx[halo_row]+Vx0[halo_row], -Vy[halo_row]+Vy0[halo_row], -Vz[halo_row]+Vz0[halo_row]))
 
-    arr_pos_cur_dis.append([X[0]-X0[0], Y[0]-Y0[0], Z[0]-Z0[0]])
-    arr_vec_cur_dis.append([-Vx[0]+Vx0[0], -Vy[0]+Vy0[0], -Vz[0]+Vz0[0]])
+    arr_pos_cur_dis.append([X[halo_row]-X0[halo_row], Y[halo_row]-Y0[halo_row], Z[halo_row]-Z0[halo_row]])
+    arr_vec_cur_dis.append([-Vx[halo_row]+Vx0[halo_row], -Vy[halo_row]+Vy0[halo_row], -Vz[halo_row]+Vz0[halo_row]])
 
   arr_pos_acc = np.array(arr_pos_acc)
   arr_vec_acc = np.array(arr_vec_acc)
@@ -354,3 +354,21 @@ def get_arrays(suite_name, data):
   arr_vec_cur_dis = np.array(arr_vec_cur_dis)
 
   return arr_row, arr_time, arr_pos_acc, arr_vec_acc, arr_ang_pos_acc, arr_ang_vec_acc, arr_pos_cur, arr_vec_cur, arr_ang_pos_cur, arr_ang_vec_cur, arr_pos_cur_dis, arr_vec_cur_dis, arr_mass_acc, arr_mass_cur
+
+def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, timedata_dir="timedata/isolated", elvis_iso_dir="../../Elvis/IsolatedTrees"):
+  df = pd.read_csv(timedata_dir+f'/{suite_name}.csv')
+  arr_row = np.array(df['row'])
+
+  _, _, X0, Y0, Z0, Rvir0 = extract_data(data, halo_row, isVel = False, isRvir = True)
+
+  X = (data['X'][arr_row][:,timestep] - X0[timestep]) / Rvir0[timestep]
+  Y = (data['Y'][arr_row][:,timestep] - Y0[timestep]) / Rvir0[timestep]
+  Z = (data['Z'][arr_row][:,timestep] - Z0[timestep]) / Rvir0[timestep]
+
+  inside_index = (X**2 + Y**2 + Z**2 < 1)
+
+  new_X = X[inside_index]
+  new_Y = Y[inside_index]
+  new_Z = Z[inside_index]
+
+  return inside_index, np.array([new_X, new_Y, new_Z]).T

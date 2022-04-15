@@ -55,12 +55,12 @@ def get_rms_and_coef(pos, normal_vectors):
   rms = (1/n*np.sum((temp-coef)**2, axis=0))**(1/2)
   return rms, coef
 
-def get_smallest_rms(pos, num_random_points=10000):
+def get_smallest_rms(pos, num_random_points=5000):
   """
   pos: (n,3) array, n points, each with 3 pos
   """
   # arr = np.random.rand(num_random_points,2)*np.array([np.pi/2, 2*np.pi])
-  theta = np.random.rand(num_random_points)*np.pi/2
+  theta = np.arccos(1-2*np.random.rand(num_random_points))
   phi = np.random.rand(num_random_points)*2*np.pi
   z = np.cos(theta)
   sintheta = np.sin(theta)
@@ -72,7 +72,7 @@ def get_smallest_rms(pos, num_random_points=10000):
   return rms.min()
 
 def get_min_vec(pos, num_random_points=10000):
-  theta = np.random.rand(num_random_points)*np.pi/2
+  theta = np.arccos(1-2*np.random.rand(num_random_points))
   phi = np.random.rand(num_random_points)*2*np.pi
   z = np.cos(theta)
   sintheta = np.sin(theta)
@@ -82,7 +82,29 @@ def get_min_vec(pos, num_random_points=10000):
   rms, coef = get_rms_and_coef(pos, normal_vectors)
   i = rms.argmin()
   return rms[i], normal_vectors[i], coef[i] 
+
+def gen_dist(size = 1):
+  return np.random.rand(size)**(1/3)
+
+def get_rms_with_percentile(pos, normal_vectors):
+  n = len(pos)
+  temp = np.matmul(pos, normal_vectors.T)
+  coef = np.mean(temp, axis = 0)
+  rms = np.percentile(np.abs(temp-coef), 68, axis = 0)
+
+  return rms
+
+def get_smallest_rms_with_percentile(pos, num_random_points=5000):
+  theta = np.arccos(1-2*np.random.rand(num_random_points))
+  phi = np.random.rand(num_random_points)*2*np.pi
+  z = np.cos(theta)
+  sintheta = np.sin(theta)
+  y = sintheta * np.cos(phi)
+  x = sintheta * np.sin(phi)
+  normal_vectors = np.array([x,y,z]).T
+  rms = get_rms_with_percentile(pos, normal_vectors)
   
+  return rms.min()
 
 def generate_random_points_with_rms():
   rms = np.random.rand()
@@ -105,3 +127,19 @@ def generate_random_points_with_rms():
   guessed_rms = get_smallest_rms(pos)
   # guess_rms = guessed_rms/(a**2+b**2+c**2)**(1/2)
   print(guessed_rms)
+
+def sample_spherical_angle(size=1):
+  phi = np.random.uniform(size=size) * 2 * np.pi
+  theta = np.arccos(1-2*np.random.uniform(size=size))
+
+  return phi, theta
+
+def sample_spherical_pos(size=1):
+  phi, theta = sample_spherical_angle(size=size)
+
+  X = np.cos(phi) * np.sin(theta)
+  Y = np.sin(phi) * np.sin(theta)
+  Z = np.cos(theta)
+
+  return np.array([X,Y,Z]).T
+
