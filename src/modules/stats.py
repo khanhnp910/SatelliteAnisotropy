@@ -143,3 +143,14 @@ def sample_spherical_pos(size=1):
 
   return np.array([X,Y,Z]).T
 
+def get_rms_poles(poles):
+  return get_rms_poles_with_avg(poles)[0]
+
+def get_rms_poles_with_avg(poles):
+  average_pole = np.mean(poles, axis = 0)
+  average_pole = average_pole/np.sum(average_pole**2) ** (1/2)
+  dot_prod = np.sum(average_pole * poles, axis = 1)
+  angles = np.arccos(dot_prod)
+  d_angle = np.mean(angles**2)**(1/2)
+
+  return d_angle, average_pole

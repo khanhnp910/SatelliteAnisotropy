@@ -6,6 +6,7 @@ from .spline import spline, new_spline
 import csv
 import matplotlib.pyplot as plt
 from modules.spline import *
+from modules.stats import get_smallest_rms, get_rms_poles
 import pandas as pd
 
 def eval_poly(t, coefs):
@@ -126,7 +127,6 @@ def extract_data(data, row, isVel = True, isID = False, ispID = False, isMvir = 
       
   return result
 
-
 def find_time_of_accretion(data, suite_name):
   _, lookback_time0, X0, Y0, Z0, _, _, _, ID0, Rvir0, coefs_X0, coefs_Y0, coefs_Z0, coefs_Rvir0 = extract_data(data, 0, isID = True, isCoefsPos = True, isCoefsRvir = True)
   num_halos = get_num_halos(data)
@@ -205,7 +205,7 @@ def read_elvis_tracks(elvis_dir, elvis_name,
   suffix = '.txt'
   
   vars_info = []
-  for iv, var in tqdm(enumerate(varnames)):
+  for iv, var in enumerate(varnames):
     file_path = prefix + var + suffix
     f = np.loadtxt(file_path)
     vars_info.append(f)
@@ -263,7 +263,6 @@ def extract_elvis_data(data, row):
 
   return [non_zero_index, lookback_time, X, Y, Z, Vx, Vy, Vz, halo_mvir, Rvir, coefs_X, coefs_Y, coefs_Z, coefs_Rvir, coefs_Mvir]
 
-
 def prep_data(data, i, arr_row):
   ## x,y,z in physical Mpc\
   arr_row = list(arr_row)
@@ -276,7 +275,6 @@ def prep_data(data, i, arr_row):
   rvir = data['Rvir'].T[i][[0]+arr_row][non_zero_index]*scale
   mass = mass[non_zero_index]
   return mass, x, y, z, rvir, scale
-
 
 def get_arrays(suite_name, type_suite, data, halo_row):
   df = pd.read_csv(f'timedata/{type_suite}/{suite_name}.csv')
@@ -355,10 +353,10 @@ def get_arrays(suite_name, type_suite, data, halo_row):
 
   return arr_row, arr_time, arr_pos_acc, arr_vec_acc, arr_ang_pos_acc, arr_ang_vec_acc, arr_pos_cur, arr_vec_cur, arr_ang_pos_cur, arr_ang_vec_cur, arr_pos_cur_dis, arr_vec_cur_dis, arr_mass_acc, arr_mass_cur
 
-def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, timedata_dir="timedata/isolated", elvis_iso_dir="../../Elvis/IsolatedTrees"):
+def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, isVel=False, timedata_dir="timedata/isolated"):
   df = pd.read_csv(timedata_dir+f'/{suite_name}.csv')
   arr_row = np.array(df['row'])
-
+  
   _, _, X0, Y0, Z0, Rvir0 = extract_data(data, halo_row, isVel = False, isRvir = True)
 
   X = (data['X'][arr_row][:,timestep] - X0[timestep]) / Rvir0[timestep]
@@ -371,4 +369,51 @@ def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, timedat
   new_Y = Y[inside_index]
   new_Z = Z[inside_index]
 
+  if isVel:
+    Vx = data['Vx'][arr_row][:,timestep] - data['Vx'][halo_row][timestep]
+    Vy = data['Vy'][arr_row][:,timestep] - data['Vx'][halo_row][timestep]
+    Vz = data['Vz'][arr_row][:,timestep] - data['Vx'][halo_row][timestep]
+
+    new_Vx = Vx[inside_index]
+    new_Vy = Vy[inside_index]
+    new_Vz = Vz[inside_index]
+    return inside_index, np.array([new_X, new_Y, new_Z]).T, np.array([new_Vx, new_Vy, new_Vz]).T
+
   return inside_index, np.array([new_X, new_Y, new_Z]).T
+
+def extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=0, timedata_dir="timedata/isolated"):
+  _, pos, vec = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, isVel=True, timedata_dir=timedata_dir)
+  poles = np.cross(pos, vec)
+  temp = np.sum(poles**2, axis=1)**(1/2)
+  poles = (poles.T/temp).T
+  return poles
+
+def read_MW():
+  MW = pd.read_csv('../../Data/pawlowski_tab2.csv')
+
+  X_MW = MW['x']
+  Y_MW = MW['y']
+  Z_MW = MW['z']
+  Vx_MW = MW['vx']
+  Vy_MW = MW['vy']
+  Vz_MW = MW['vz']
+
+  return X_MW, Y_MW, Z_MW, Vx_MW, Vy_MW, Vz_MW
+
+def get_rms_MW():
+  X_MW, Y_MW, Z_MW, _, _, _ = read_MW()
+
+  pos_MW = np.array([X_MW, Y_MW, Z_MW]).T
+  r_MW = np.sum(pos_MW**2, axis=1)**(1/2)
+
+  return get_smallest_rms(pos_MW)/np.median(r_MW)
+
+def get_rms_poles_MW():
+  X_MW, Y_MW, Z_MW, Vx_MW, Vy_MW, Vz_MW = read_MW()
+  pos = np.array([X_MW, Y_MW, Z_MW]).T
+  vec = np.array([Vx_MW, Vy_MW, Vz_MW]).T
+  poles = np.cross(pos, vec)
+  temp = (np.sum(poles**2, axis = 1))**(1/2)
+  poles = (poles.T/temp).T
+
+  return get_rms_poles(poles)
