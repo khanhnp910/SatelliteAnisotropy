@@ -1,11 +1,73 @@
 import numpy as np
 from modules.spline import eval_new_spline, eval_spline
-from modules.helper_functions import extract_data, prep_data, extract_inside_at_timestep, to_spherical, get_rms_MW, get_rms_poles_MW, extract_poles_inside_at_timestep
+from modules.helper_functions import extract_data, prep_data, extract_inside_at_timestep, to_spherical, get_rms_MW, get_rms_poles_MW, extract_poles_inside_at_timestep, to_degree
 import matplotlib.pyplot as plt
-from modules.stats import ks_uniformity_test, sample_spherical_pos, gen_dist, get_smallest_rms, get_rms_poles_with_avg, get_rms_poles
+from matplotlib.colors import LogNorm
+from modules.stats import *
 from matplotlib.animation import FuncAnimation
 from scipy.stats import gaussian_kde
+import scipy.optimize as opt
 import pandas as pd
+
+def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5), 
+                cmin=1.e-4, cmax=1.0, smooth=None, xpmax=None, ypmax=None, 
+                log=False, weights=None, xlabel='x', ylabel='y', 
+                clevs=None, fig_setup=None, savefig=None):
+  """
+  construct and plot a binned, 2d distribution in the x-y plane 
+  using nxbins and nybins in x- and y- direction, respectively
+  
+  log = specifies whether logged quantities are passed to be plotted on log-scale outside this routine
+  """
+  if fig_setup is None:
+    fig, ax = plt.subplots(figsize=figsize)
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.xlim(xlim[0], xlim[1])
+    plt.ylim(ylim[0], ylim[1])
+  else:
+    ax = fig_setup
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(xlim); ax.set_ylim(ylim)
+  if xlim[1] < 0.: ax.invert_xaxis()
+
+  if weights is None: weights = np.ones_like(x)
+  H, xbins, ybins = np.histogram2d(x, y, weights=weights, bins=(np.linspace(xlim[0], xlim[1], nxbins),np.linspace(ylim[0], ylim[1], nybins)))
+  
+  H = np.rot90(H); H = np.flipud(H); 
+            
+  X,Y = np.meshgrid(xbins[:-1],ybins[:-1]) 
+
+  if smooth != None:
+    from scipy.signal import wiener
+    H = wiener(H, mysize=smooth)
+      
+  H = H/np.sum(H)        
+  Hmask = np.ma.masked_where(H==0,H)
+  
+  if log:
+    X = np.power(10.,X); Y = np.power(10.,Y)
+
+  pcol = ax.pcolormesh(X, Y,(Hmask), cmap=plt.cm.BuPu, norm=LogNorm(), linewidth=0., rasterized=False)
+  pcol.set_edgecolor('face')
+  
+  # plot contours if contour levels are specified in clevs 
+  if clevs is not None:
+    lvls = []
+    for cld in clevs:  
+      sig = opt.brentq( conf_interval, 0., 1., args=(H,cld) )   
+      lvls.append(sig)
+    
+    ax.contour(X, Y, H, linewidths=(1.0,0.75, 0.5, 0.25), colors='black', levels = sorted(lvls), 
+            norm = LogNorm(), extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]])
+  if xpmax is not None:
+    ax.scatter(xpmax, ypmax, marker='x', c='orangered', s=20)
+  if savefig:
+    plt.savefig(savefig,bbox_inches='tight')
+  if fig_setup is None:
+    plt.show()
+  return ax
 
 def show_track(data, row, ax = None):
   _, lookback_time, X, Y, Z, _, _, _, coefs_X, coefs_Y, coefs_Z = extract_data(data, row, isCoefsPos = True)
@@ -42,8 +104,8 @@ def show_1D_track(data, row, arg = 'X', ax = None):
   ax.plot(lookback_time, s, color='g')
   ax.plot(t, v, color='r')
 
-
-def plot_spherical_coordinates(spherical_coors, arr_mass, title, img_name, arr_time = None, isColorBar = False, saveimage = False):
+def plot_spherical_coordinates(spherical_coors, arr_mass, title, img_name, 
+                        arr_time = None, isColorBar = False, saveimage = False):
   plt.figure(figsize=(8, 6)).add_subplot(111, projection="aitoff")
   if isColorBar:
     plt.scatter(spherical_coors[:,1], spherical_coors[:,0], marker = '.', c = arr_time, cmap="viridis", s = (arr_mass/max(arr_mass))**(2/5)*200)
@@ -262,19 +324,21 @@ def plot_rms(data, arr_row, lookback_time0, X0, Y0, Z0, Rvir0, title, img_name, 
   ax.legend(loc='upper left')
   # plt.yscale('log')
   ax.set_xlabel('Lookback time (Gyrs)')
-  ax.set_ylabel('rms (rvir)')
+  ax.set_ylabel('\\Delta_{\\textrm{rms}} (rvir)')
   ax.set_title(title)
   ax.invert_xaxis()
 
   if saveimage:
     plt.savefig(img_name)
 
-def plot_distribution_rms_dispersion(suite_name, halo_row, imgname, set_title = True, show_halo = True, show_isotropized = True, show_isotropy = False, show_uniform = False, iterations = 10000, num_chosen_subhalos = 11,  ax=None, data=None, timestep=0, timedata_dir="timedata/isolated", elvis_iso_dir="../../Elvis/IsolatedTrees", saveimage=False):
+def plot_distribution_rms_dispersion(suite_name, halo_row, imgname, set_title = True, show_halo = True, show_isotropized = True, 
+                        show_isotropy = False, show_uniform = False, iterations = 100000, num_chosen_subhalos = 11,  
+                        ax=None, data=None, timestep=0, timedata_dir="timedata/isolated", saveimage=False):
   df = pd.read_csv(timedata_dir+f'/{suite_name}.csv')
   arr_row = np.array(df['row'])
   
   
-  inside_index, pos = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir, elvis_iso_dir=elvis_iso_dir)
+  inside_index, pos = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
   size = len(pos)
 
   if size < num_chosen_subhalos:
@@ -311,7 +375,7 @@ def plot_distribution_rms_dispersion(suite_name, halo_row, imgname, set_title = 
       rmss_isotropy.append(get_smallest_rms(pos_isotropy)/np.median(r_isotropy))
 
     if show_uniform:
-      r_uniform = gen_dist(size=num_chosen_subhalos)
+      r_uniform = sample_rad_dis_uniform(size=num_chosen_subhalos)
       pos_uniform = np.reshape(r_uniform, (num_chosen_subhalos,1)) * iso_pos
       rmss_uniform.append(get_smallest_rms(pos_uniform)/np.median(r_uniform))
   
@@ -319,8 +383,8 @@ def plot_distribution_rms_dispersion(suite_name, halo_row, imgname, set_title = 
 
   if set_title:
     ax.set_title('The distribution of the rms dispersions')
-    ax.set_xlabel('$D_{\\textrm{rms}}/R_{\\textrm{med}}$')
-    ax.set_ylabel('P($D_{\\textrm{rms}}/R_{\\textrm{med}}$)')
+    ax.set_xlabel('$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$')
+    ax.set_ylabel('P($\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$)')
 
   max_arr = np.max(data['Mvir'][arr_row[inside_index]], axis=1)
   argmax = np.argsort(max_arr)[-num_chosen_subhalos:]
@@ -380,7 +444,8 @@ def plot_circle_around_vector(average_pole, d_angle,ax=None,label=""):
   ax.grid(True)
   plt.rcParams['axes.titley'] = 1.1
 
-def plot_orbital_poles(suite_name, halo_row, data, imgname, timestep=0, iterations = 500000, num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
+def plot_orbital_poles(suite_name, halo_row, data, imgname, timestep=0, iterations = 500000, 
+                num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
   poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
 
   min_average_poles = []
@@ -390,20 +455,7 @@ def plot_orbital_poles(suite_name, halo_row, data, imgname, timestep=0, iteratio
     if ax is None:
       ax = plt.figure(figsize=(8, 6)).add_subplot(projection='aitoff')
     for k in range(3,num_chosen_subhalos+1):
-      average_poles = []
-      d_angles = []
-      
-      for _ in range(iterations):
-        indices = np.random.choice(len(poles), k, replace=False)
-        chosen_poles = poles[indices]
-        
-        d_angle, average_pole = get_rms_poles_with_avg(chosen_poles)
-        
-        average_poles.append(average_pole)
-        d_angles.append(d_angle)
-          
-      average_poles = np.array(average_poles)
-      d_angles = np.array(d_angles)
+      d_angles, average_poles = get_rms_arr_poles_with_avg_for_k(poles, iterations=iterations, num_chosen=k)
       
       min_index = np.argmin(d_angles)
       
@@ -412,7 +464,7 @@ def plot_orbital_poles(suite_name, halo_row, data, imgname, timestep=0, iteratio
     
     count = 3
     for average_pole, d_angle in zip(min_average_poles, min_d_angles):
-      plot_circle_around_vector(average_pole, d_angle,ax=ax,label=f"{count}")
+      plot_circle_around_vector(average_pole, d_angle, ax=ax,label=f"{count}")
       count += 1
 
     plt.rcParams['axes.titley'] = 1.1
@@ -424,45 +476,34 @@ def plot_orbital_poles(suite_name, halo_row, data, imgname, timestep=0, iteratio
     if saveimage:
       plt.savefig(imgname)
 
-def plot_orbital_poles_with_best_config(suite_name, halo_row, data, imgname, timestep=0, iterations = 500000, num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
+def plot_orbital_poles_with_best_config(suite_name, halo_row, data, imgname, timestep=0, iterations = 500000, 
+                        num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
   
   poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
 
   if len(poles) >= num_chosen_subhalos:
     if ax is None:
       ax = plt.figure(figsize=(8, 6)).add_subplot(projection='aitoff')
-    k = num_chosen_subhalos
-    average_poles = []
-    d_angles = []
-    all_chosen_indices = []
-      
-    for _ in range(iterations):
-      indices = np.random.choice(len(poles), k, replace=False)
-      chosen_poles = poles[indices]
-      
-      d_angle, average_pole = get_rms_poles_with_avg(chosen_poles)
 
-      all_chosen_indices.append(indices)
-      average_poles.append(average_pole)
-      d_angles.append(d_angle)
-        
-    average_poles = np.array(average_poles)
-    d_angles = np.array(d_angles)
-    
+    all_chosen_indices = random_choice_noreplace(iterations, len(poles), k=num_chosen_subhalos)
+    chosen_poles = poles[all_chosen_indices]
+    d_angles, average_poles = get_rms_arr_poles_with_avg(chosen_poles)
+
     min_index = np.argmin(d_angles)
+
     average_pole = average_poles[min_index]
     d_angle = d_angles[min_index]
     chosen_indice = all_chosen_indices[min_index]
 
     plot_circle_around_vector(average_pole, d_angle,ax=ax,label=f"{num_chosen_subhalos}")
 
-    chosen_poles = poles[chosen_indice]
+    chosen_poles_ = poles[chosen_indice]
 
     pos_phis = []
     pos_thetas = []
 
-    for i in range(len(chosen_poles)):
-      cur = chosen_poles[i]
+    for i in range(len(chosen_poles_)):
+      cur = chosen_poles_[i]
       aitoff_theta, aitoff_phi = to_spherical(cur[0],cur[1],cur[2])
       pos_thetas.append(aitoff_theta)
       pos_phis.append(aitoff_phi)
@@ -476,16 +517,15 @@ def plot_orbital_poles_with_best_config(suite_name, halo_row, data, imgname, tim
     ax.grid(True)
     plt.rcParams['axes.titley'] = 1.1
     ax.set_title(f"Distribution of orbital poles and uncertainties with best config for {suite_name}")
-    ax.set_xlabel("rms: {:.2f}".format(get_smallest_rms(chosen_pos_dis)/np.median(chosen_r))+"/"+"rms of pole: {:.2f}$^\circ$".format(d_angle/(np.pi)*180))
+    ax.set_xlabel("$\\Delta_{\\textrm{rms}}$: "+"{:.2f}".format(get_smallest_rms(chosen_pos_dis)/np.median(chosen_r))+"-$\\Delta_{\\textrm{sph}}: $"+"{:.2f}$^\circ$".format(d_angle/(np.pi)*180))
     ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
 
     if saveimage:
       plt.savefig(imgname)
 
-def plot_rms_orbital_poles_vs_k(suite_name, halo_row, data, imgname, iterations = 20000, num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
-  poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timedata_dir=timedata_dir)
-  
-  n = num_chosen_subhalos
+def plot_rms_orbital_poles_vs_k(suite_name, halo_row, data, imgname, isDeg=True, timestep=0, iterations = 200000, num_chosen_subhalos=11, 
+                        timedata_dir="timedata/isolated", ax = None, saveimage=False):
+  poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
   
   if len(poles) <= num_chosen_subhalos:
     return
@@ -494,31 +534,23 @@ def plot_rms_orbital_poles_vs_k(suite_name, halo_row, data, imgname, iterations 
   
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot()
-  for k in range(3,n+1):
-    d_angles = []
-
-    for _ in range(iterations):
-      indices = np.random.choice(len(poles), k, replace=False)
-      chosen_poles = poles[indices]
-
-      d_angle = get_rms_poles(chosen_poles)
-
-      d_angles.append(d_angle)
-
-
-    d_angles = np.array(d_angles)
-
-    arr.append(np.min(d_angles))
+  for k in range(3,num_chosen_subhalos+1):
+    d_angles = get_rms_arr_poles_for_k(poles, iterations=iterations, num_chosen=k)
+    if isDeg:
+      arr.append(to_degree(np.min(d_angles)))
+    else:
+      arr.append(np.min(d_angles))
   
-  ax.scatter(np.arange(3,n+1), arr)
+  ax.scatter(np.arange(3,num_chosen_subhalos+1), arr)
   ax.set_title(f"rms orbital poles vs number of chosen halos for {suite_name}")
   ax.set_xlabel("k")
-  ax.set_ylabel("$\Delta_{rms}$")
+  ax.set_ylabel("$\\Delta_{\\textrm{sph}}$ "+"($^\\circ$)" if isDeg else "$\\Delta_{\\textrm{sph}}$ (rad)")
 
   if saveimage:
     plt.savefig(imgname)
 
-def plot_distribution_rms_orbital_poles_dispersion(suite_name, halo_row, data, imgname, timestep=0, iterations = 20000, num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
+def plot_distribution_rms_orbital_poles_dispersion(suite_name, halo_row, data, imgname, timestep=0, iterations = 20000, 
+                            num_chosen_subhalos=11, timedata_dir="timedata/isolated", ax = None, saveimage=False):
   poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
   
   if len(poles) <= num_chosen_subhalos:
@@ -527,29 +559,20 @@ def plot_distribution_rms_orbital_poles_dispersion(suite_name, halo_row, data, i
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot()
 
-  d_angles = []
-
-  for _ in range(iterations):
-    indices = np.random.choice(len(poles), num_chosen_subhalos, replace=False)
-    chosen_poles = poles[indices]
-
-    d_angle = get_rms_poles(chosen_poles)
-
-    d_angles.append(d_angle)
-
-  d_angles = np.array(d_angles)
+  d_angles = get_rms_arr_poles_for_k(poles, iterations=iterations, num_chosen=num_chosen_subhalos)
   
   points = np.linspace(0.4, 2, num = 1000)
   kernel = gaussian_kde(d_angles)
   ax.plot(points, kernel(points), label=f"{suite_name}", color='b')
-  ax.set_title(f"rms orbital poles dispersion for {suite_name}")
-  ax.set_xlabel("$D_{\\textrm{rms,orbital}} (rad)$")
-  ax.set_ylabel("$P(D_{\\textrm{rms,orbital}}$)")
+  ax.set_title("$\\Delta_{\\textrm{sph}}$ "+f"dispersion for {suite_name}")
+  ax.set_xlabel("$\\Delta_{\\textrm{sph}} (rad)$")
+  ax.set_ylabel("$P(\\Delta_{\\textrm{sph}}$)")
   ax.legend()
   if saveimage:
     plt.savefig(imgname)
 
-def plot_distribution_rms_orbital_poles_dispersion_with_selection(suite_name, halo_row, data, imgname, timestep=0, timedata_dir="timedata/isolated", iterations = 800, num_chosen_subhalos=11, ax = None, saveimage=False):
+def plot_distribution_rms_orbital_poles_dispersion_with_selection(suite_name, halo_row, data, imgname, timestep=0, iterations = 800, 
+                        timedata_dir="timedata/isolated", num_chosen_subhalos=11, ax = None, saveimage=False):
   poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
   
   if len(poles) <= num_chosen_subhalos:
@@ -588,9 +611,9 @@ def plot_distribution_rms_orbital_poles_dispersion_with_selection(suite_name, ha
   points = np.linspace(0.4, 2, num = 1000)
   kernel = gaussian_kde(d_angles)
   ax.plot(points, kernel(points), label=f"{suite_name}", color='b')
-  ax.set_title(f"rms orbital poles dispersion for {suite_name} with selection")
-  ax.set_xlabel("$D_{\\textrm{rms,orbital}} (rad)$")
-  ax.set_ylabel("$P(D_{\\textrm{rms,orbital}}$)")
+  ax.set_title("$\\Delta_{\\textrm{sph}}$"+f" dispersion for {suite_name} with selection")
+  ax.set_xlabel("$\\Delta_{\\textrm{sph}} (rad)$")
+  ax.set_ylabel("$P(\\Delta_{\\textrm{sph}})$")
   ax.text(0.5,1.7,"Probability of selection: {:.2f}".format(count/count2))
   
   ax.arrow(get_rms_poles_MW(), 0,0,0.5, color='r',head_width=0.01,head_length=0.1)
@@ -600,48 +623,73 @@ def plot_distribution_rms_orbital_poles_dispersion_with_selection(suite_name, ha
   if saveimage:
     plt.savefig(imgname)
 
-def plot_hist_rms_vs_rms_poles(suite_name, halo_row, data, imgname, timestep=0, timedata_dir="timedata/isolated", iterations = 100000, num_chosen_subhalos=11, saveimage=False):
-  poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
-
-  if len(poles) <= num_chosen_subhalos:
-    return
-
-  _, pos = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
-  size = len(pos)
-
+def plot_hist_rms_vs_rms_poles(suite_name, halo_row, data, imgname, isDeg=True, newData=False,timestep=0, iterations = 20000, 
+                              timedata_dir="timedata/isolated", num_chosen_subhalos=11, saveimage=False):
+  
   d_angles = []
   rmss = []
 
-  for _ in range(iterations):
-    indices = np.random.choice(size, num_chosen_subhalos, replace=False)
+  coef = 180/np.pi if isDeg else 1
 
-    pos_halo = pos[indices,:]
-    r_halo = np.sum(pos_halo**2, axis=1)**(1/2)
-    r_med_halo = np.median(r_halo)
+  if newData:
+    poles = extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
 
-    rmss.append(get_smallest_rms(pos_halo)/r_med_halo) 
+    if len(poles) <= num_chosen_subhalos:
+      return
 
-    chosen_poles = poles[indices]
+    _, pos = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, timedata_dir=timedata_dir)
+    size = len(pos)
 
-    d_angle = get_rms_poles(chosen_poles)
+    for _ in range(iterations):
+      indices = np.random.choice(size, num_chosen_subhalos, replace=False)
 
-    d_angles.append(d_angle)
+      pos_halo = pos[indices,:]
+      r_halo = np.sum(pos_halo**2, axis=1)**(1/2)
+      r_med_halo = np.median(r_halo)
 
-  d_angles = np.array(d_angles)
-  rmss = np.array(rmss)
+      rmss.append(get_smallest_rms(pos_halo)/r_med_halo) 
+
+      chosen_poles = poles[indices]
+
+      d_angle = get_rms_poles(chosen_poles)
+
+      d_angles.append(d_angle)
+
+    d_angles = np.array(d_angles)
+    rmss = np.array(rmss)
+  else:
+    type_suite = 'isolated' if suite_name[0] == 'i' else 'paired'
+    df = pd.read_csv(f"../../Data/subhalo_log/{type_suite}/{suite_name}.csv")
+
+    d_angles = df['Delta_sph_11']
+
+    rmss = df['Delta_rms']/df['Rmedian']
+
+  # all_chosen_indices = random_choice_noreplace(iterations, len(poles), k=num_chosen_subhalos)
+
+  # chosen_poles = poles[all_chosen_indices]
+  # chosen_pos = pos[all_chosen_indices]
+  
+  # d_angles = get_rms_arr_poles(chosen_poles)
+  # rmss = get_smallest_arr_rms(chosen_pos)
 
   fig, ax = plt.subplots()
 
-  x_bins = np.linspace(np.min(rmss), np.max(rmss), 100)
-  y_bins = np.linspace(np.min(d_angles), np.max(d_angles), 100)
-  hist = ax.hist2d(rmss, d_angles, bins =[x_bins, y_bins], cmap='hot_r')
+  # x_bins = np.linspace(np.min(rmss), np.max(rmss), 100)
+  # y_bins = np.linspace(np.min(d_angles), np.max(d_angles), 100)
+  # hist = ax.hist2d(rmss, d_angles, bins =[x_bins, y_bins], cmap='hot_r')
+  
+  ax = plot_2d_dist(rmss,d_angles*coef, [np.min(rmss),np.max(rmss)], [np.min(d_angles*coef), np.max(d_angles*coef)], 50, 50, figsize=(5,5),fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
+  ax.scatter(get_rms_MW(), get_rms_poles_MW()*coef, label='MW', marker='x', c='orangered', s=20)
 
-  ax.scatter(get_rms_MW(), get_rms_poles_MW(), c='b')
+  i = np.argmin(d_angles)
+  ax.scatter(rmss[i], d_angles[i]*coef, label='subhalo with min d_sph', marker='x', c='b', s=30)
 
   ax.set_title(f"histogram of rms_plane and rms_pole of {suite_name}")
-  ax.set_xlabel("$D_{\\textrm{rms}}/R_{\\textrm{med}}$")
-  ax.set_ylabel("$D_{\\textrm{rms,pole}} (\\textrm{rad})$")
-  fig.colorbar(hist[3], orientation='vertical')
+  ax.set_xlabel("$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$")
+  ax.set_ylabel("$\\Delta_{\\textrm{sph}} $"+("$(^{\\circ})$" if isDeg else "$(\\textrm{rad})$"))
+  # fig.colorbar(hist[3], orientation='vertical')
+  ax.legend()
 
   if saveimage:
     plt.savefig(imgname)

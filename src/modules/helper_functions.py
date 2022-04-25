@@ -1,5 +1,5 @@
 import numpy as np
-from tqdm.notebook import tqdm
+# from tqdm.notebook import tqdm
 import astropy.units as u
 from astropy.cosmology import WMAP7
 from .spline import spline, new_spline
@@ -8,23 +8,64 @@ import matplotlib.pyplot as plt
 from modules.spline import *
 from modules.stats import get_smallest_rms, get_rms_poles
 import pandas as pd
+from deprecated import deprecated
+from typing import Literal, Union
 
-def eval_poly(t, coefs):
+def eval_poly(t: float, coefs: list)->float:
+  """evaluate a polynomial with coefs at t
+
+  Args:
+      t (float): point of evaluation
+      coefs (list): coefficients of the polynomial, stored in increasing degree
+
+  Returns:
+      float: result of the evaluation
+  """
+  # degree of the polynomial + 1
   n = len(coefs)
+
+  # leading coefficient
   result = coefs[-1]
+
   for i in range(n-2, -1, -1):
     result *= t
     result += coefs[i]
+  
   return result
 
-def eval_diff_sq_dist(t, diff_X, diff_Y, diff_Z, coef_Rvir_0):
+def eval_diff_sq_dist(t: float, diff_X: list, diff_Y:list, diff_Z: list, coef_Rvir_0: list)->float:
+  """evaluate (X-X_0)^2+(Y-Y_0)^2+(Z-Z_0)^2-Rvir_0^2 at time t
+
+  Args:
+      t (float): time of evaluation
+      diff_X (list): coefficients of the X-X_0
+      diff_Y (list): coefficients of the Y-Y_0
+      diff_Z (list): coefficients of the Y-Y_0
+      coef_Rvir_0 (list): coefficients of the Rvir_0
+
+  Returns:
+      float: < 0 if at time t, (X,Y,Z) is in the sphere of radius Rvir_0 centered at (X_0,Y_0,Z_0) and > 0, otherwise
+  """
   return eval_poly(t, diff_X)**2 + eval_poly(t, diff_Y)**2 + eval_poly(t, diff_Z)**2 - eval_poly(t, coef_Rvir_0)**2
 
-def eval_der_diff_sq_dist(t, diff_X, diff_Y, diff_Z, coef_Rvir_0):
+def eval_der_diff_sq_dist(t: float, diff_X: list, diff_Y: list, diff_Z: list, coef_Rvir_0: list)->float:
+  """evaluate 2[(X-X_0)(dX/dt-dX_0/dt)+(Y-Y_0)(dY/dt-dY_0/dt)+(Z-Z_0)(dZ/dt-dZ_0/dt)-Rvir_0*dRvir_0/dt]
+
+  Args:
+      t (float): time of evaluation
+      diff_X (list): coefficients of the X-X_0
+      diff_Y (list): coefficients of the Y-Y_0
+      diff_Z (list): coefficients of the Y-Y_0
+      coef_Rvir_0 (list): coefficients of the Rvir_0
+
+  Returns:
+      float: derivative difference of square dist
+  """
   arange_0 = np.arange(1, len(diff_X))
   arange_1 = np.arange(1, len(coef_Rvir_0))
   return 2*(eval_poly(t, diff_X)*eval_poly(t, arange_0*diff_X[1:]) + eval_poly(t, diff_Y)*eval_poly(t, arange_0*diff_Y[1:]) + eval_poly(t, diff_Z)*eval_poly(t, arange_0*diff_Z[1:]) - eval_poly(t, coef_Rvir_0)*eval_poly(t, arange_1*coef_Rvir_0[1:]))
 
+@deprecated(reason="This functions is no longer supported")
 def solve(diff_time, diff_X, diff_Y, diff_Z, coef_Rvir_0, stol = 10e-9):
   """
   solve for time t at which the subhalo enters the virial radius by Newton's method
@@ -41,28 +82,42 @@ def solve(diff_time, diff_X, diff_Y, diff_Z, coef_Rvir_0, stol = 10e-9):
   else:
     return ctime
 
-def newSolve(diff_time, diff_X, diff_Y, diff_Z, coef_Rvir_0, stol = 10e-10):
-  """
-  solve for time t at which the subhalo enters the virial radius by binary search
+def newSolve(diff_time: float, diff_X: list, diff_Y: list, diff_Z: list, coef_Rvir_0: list, stol: float = 10e-10)->float:
+  """solve for time t at which the subhalo enters the virial radius by binary search
+
+  Args:
+      diff_time (float): starting time of evaluation
+      diff_X (list): coefficients of the X-X_0
+      diff_Y (list): coefficients of the Y-Y_0
+      diff_Z (list): coefficients of the Y-Y_0
+      coef_Rvir_0 (list): coefficients of the Rvir_0
+      stol (float, optional): tolerance. Defaults to 10e-10.
+
+  Returns:
+      float: time at which the subhalo is at the virial radius
   """
   start_time = 0
   end_time = diff_time
-
-  start_val = eval_diff_sq_dist(start_time, diff_X, diff_Y, diff_Z, coef_Rvir_0)
-  end_val = eval_diff_sq_dist(end_time, diff_X, diff_Y, diff_Z, coef_Rvir_0)
 
   while abs(end_time - start_time) >= stol:
     mid_time = (start_time + end_time) / 2
     mid_val = eval_diff_sq_dist(mid_time, diff_X, diff_Y, diff_Z, coef_Rvir_0)
     if mid_val <= 0:
       start_time = mid_time
-      start_val = mid_val
     else:
       end_time = mid_time
-      end_val = mid_val
   return start_time
 
-def is_parent(ID0, pID):
+def is_parent(ID0: list, pID: list)->list[bool]:
+  """return true at index i if ID0[i] == pID[i]
+
+  Args:
+      ID0 (list): list of ID of host halo
+      pID (list): list of pID of subhalo
+
+  Returns:
+      list[bool]: at index i, return ID0[i] == pID[i]
+  """
   n0 = len(ID0)
   n = len(pID)
   m = min(n0, n)
@@ -71,10 +126,41 @@ def is_parent(ID0, pID):
     result.append(ID0[i] == pID[i])
   return np.array(result)
 
-def dist(j, X, Y, Z, X0, Y0, Z0):
+def dist(j: int, X: list, Y: list, Z: list, X0: list, Y0: list, Z0: list)->float:
+  """calculate the distance square at index j
+
+  Args:
+      j (int): index at evaluation
+      X (list): coefficients of X 
+      Y (list): coefficients of Y 
+      Z (list): coefficients of Z 
+      X0 (list): coefficients of X0 
+      Y0 (list): coefficients of Y0
+      Z0 (list): coefficients of Z0 
+
+  Returns:
+      float: distance square at index j
+  """
   return (X[j]-X0[j])**2 + (Y[j]-Y0[j])**2 + (Z[j]-Z0[j]) **2
 
-def extract_data(data, row, isVel = True, isID = False, ispID = False, isMvir = False, isRvir = False, isCoefsPos = False, isCoefsMvir = False, isCoefsRvir = False):
+def extract_data(data: np.ndarray, row: int, isVel: bool = True, isID: bool = False, ispID: bool = False, isMvir: bool = False, isRvir: bool = False, isCoefsPos: bool = False, isCoefsMvir: bool = False, isCoefsRvir: bool = False)->list[np.ndarray]:
+  """extract the data from the halo
+
+  Args:
+      data (np.ndarray): original data
+      row (int): row of extraction
+      isVel (bool, optional): add velocity info if True. Defaults to True.
+      isID (bool, optional): add ID info if True. Defaults to False.
+      ispID (bool, optional): add pID info if True. Defaults to False.
+      isMvir (bool, optional): add Mvir info if True. Defaults to False.
+      isRvir (bool, optional): add Rvir info if True. Defaults to False.
+      isCoefsPos (bool, optional): add CoefsPos info if True. Defaults to False.
+      isCoefsMvir (bool, optional): add Mvir, CoefsMvir info if True. Defaults to False.
+      isCoefsRvir (bool, optional): add Rvir, CoefsRvir info if True. Defaults to False.
+
+  Returns:
+      list[np.ndarray]: data extracted
+  """
   non_zero = data['Mvir'][row] > 0
   result = []
   
@@ -127,7 +213,13 @@ def extract_data(data, row, isVel = True, isID = False, ispID = False, isMvir = 
       
   return result
 
-def find_time_of_accretion(data, suite_name):
+def find_time_of_accretion(data: np.ndarray, suite_name: str)->None:
+  """find time of accretion and write to file
+
+  Args:
+      data (np.ndarray): original data
+      suite_name (str): name of the current suite
+  """
   _, lookback_time0, X0, Y0, Z0, _, _, _, ID0, Rvir0, coefs_X0, coefs_Y0, coefs_Z0, coefs_Rvir0 = extract_data(data, 0, isID = True, isCoefsPos = True, isCoefsRvir = True)
   num_halos = get_num_halos(data)
   mass_cutoff = 5e8
@@ -174,12 +266,19 @@ def find_time_of_accretion(data, suite_name):
         writer = csv.writer(file, delimiter=",")
         writer.writerow([i, t])
 
-def to_spherical(x,y,z):
-  """
-  find [theta, phi] in [-pi/2,pi/2]x[-pi,pi] where
-  x = r*cos(theta)*cos(phi)
-  y = r*cos(theta)*sin(phi)
-  z = r*sin(theta)
+def to_spherical(x: float, y: float, z: float)->tuple[float, float]:
+  """find [theta, phi] in [-pi/2,pi/2]x[-pi,pi] where
+    x = r*cos(theta)*cos(phi)\\
+    y = r*cos(theta)*sin(phi)\\
+    z = r*sin(theta)\\
+
+  Args:
+      x (float): x position
+      y (float): y position
+      z (float): z position
+
+  Returns:
+      tuple[float, float]: _description_
   """
   theta = np.arctan(z/(x**2+y**2)**(1/2))
   phi = np.arctan(y/x)
@@ -188,10 +287,20 @@ def to_spherical(x,y,z):
       phi -= np.pi
     else:
       phi += np.pi
-  return [theta, phi]
+  return theta, phi
 
-def to_direction(x,y,z):
-    return [x/(x**2+y**2+z**2)**0.5,y/(x**2+y**2+z**2)**0.5,z/(x**2+y**2+z**2)**0.5]
+def to_direction(x: float, y: float, z: float)->tuple[float, float, float]:
+  """normalize the vector
+
+  Args:
+      x (float): x position
+      y (float): y position
+      z (float): z position
+
+  Returns:
+      tuple[float, float, float]: normalized vector
+  """
+  return [x/(x**2+y**2+z**2)**0.5,y/(x**2+y**2+z**2)**0.5,z/(x**2+y**2+z**2)**0.5]
 
 def read_elvis_tracks(elvis_dir, elvis_name, 
                       varnames = None):
@@ -232,12 +341,29 @@ def plot_pretty(dpi=175,fontsize=9):
 
   return
 
-def get_num_halos(data):
+def get_num_halos(data: np.ndarray)->int:
+  """get number of halos
+
+  Args:
+      data (np.ndarray): original data
+
+  Returns:
+      int: number of halo
+  """
   return len(data['X'])
 
-def get_num_time(data):
+def get_num_time(data: np.ndarray)->int:
+  """get number of time steps
+
+  Args:
+      data (np.ndarray): original data
+
+  Returns:
+      int: number of time steps
+  """
   return len(data['X'][0])
 
+@deprecated(reason="This functions is no longer supported")
 def extract_elvis_data(data, row):
   non_zero_index = len(data['X'][0])-1
   while data['Mvir'][row][non_zero_index] == 0:
@@ -263,7 +389,17 @@ def extract_elvis_data(data, row):
 
   return [non_zero_index, lookback_time, X, Y, Z, Vx, Vy, Vz, halo_mvir, Rvir, coefs_X, coefs_Y, coefs_Z, coefs_Rvir, coefs_Mvir]
 
-def prep_data(data, i, arr_row):
+def prep_data(data: np.ndarray, i: int, arr_row: np.ndarray)->list[np.ndarray]:
+  """prepared quantites of data
+
+  Args:
+      data (np.ndarray): orignal data
+      i (int): index of time
+      arr_row (np.ndarray): rows of subhalos
+
+  Returns:
+      list[np.ndarray]: list of prepared quantities
+  """
   ## x,y,z in physical Mpc\
   arr_row = list(arr_row)
   mass = data['Mvir'].T[i][[0]+arr_row]
@@ -276,7 +412,18 @@ def prep_data(data, i, arr_row):
   mass = mass[non_zero_index]
   return mass, x, y, z, rvir, scale
 
-def get_arrays(suite_name, type_suite, data, halo_row):
+def get_arrays(suite_name: str, type_suite: Literal['isolated','paired'], data: np.ndarray, halo_row: Literal[0,1])->list[np.ndarray]:
+  """get relevant arrays
+
+  Args:
+      suite_name (str): name of the current suite
+      type_suite (Literal['isolated','paired']): type of the suite. Can only be isolated or paired
+      data (np.ndarray): original data
+      halo_row (Literal[0,1]): row of the host halo
+
+  Returns:
+      list[np.ndarray]: list of relevant arrays
+  """
   df = pd.read_csv(f'timedata/{type_suite}/{suite_name}.csv')
   # array row of halos that 
   arr_row = np.array(df['row'])
@@ -353,7 +500,20 @@ def get_arrays(suite_name, type_suite, data, halo_row):
 
   return arr_row, arr_time, arr_pos_acc, arr_vec_acc, arr_ang_pos_acc, arr_ang_vec_acc, arr_pos_cur, arr_vec_cur, arr_ang_pos_cur, arr_ang_vec_cur, arr_pos_cur_dis, arr_vec_cur_dis, arr_mass_acc, arr_mass_cur
 
-def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, isVel=False, timedata_dir="timedata/isolated"):
+def extract_inside_at_timestep(suite_name: str, halo_row: Literal[0,1], data: np.ndarray, timestep: int = 0, isVel:bool=False, timedata_dir: str="timedata/isolated")->list[np.ndarray]:
+  """extract relevant data
+
+  Args:
+      suite_name (str): name of the current suite
+      halo_row (Literal[0,1]): row of the host halo
+      data (np.ndarray): original data
+      timestep (int, optional): time step to extract. Defaults to 0.
+      isVel (bool, optional): add velocity if true. Defaults to False.
+      timedata_dir (str, optional): directory of the timedata. Defaults to "timedata/isolated".
+
+  Returns:
+      list[np.ndarray]: indices in which the subhalo is inside, extracted pos, extracted vec (if isVel is True)
+  """
   df = pd.read_csv(timedata_dir+f'/{suite_name}.csv')
   arr_row = np.array(df['row'])
   
@@ -363,6 +523,7 @@ def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, isVel=F
   Y = (data['Y'][arr_row][:,timestep] - Y0[timestep]) / Rvir0[timestep]
   Z = (data['Z'][arr_row][:,timestep] - Z0[timestep]) / Rvir0[timestep]
 
+  # shape of (len(arr_row),)
   inside_index = (X**2 + Y**2 + Z**2 < 1)
 
   new_X = X[inside_index]
@@ -381,14 +542,31 @@ def extract_inside_at_timestep(suite_name, halo_row, data, timestep = 0, isVel=F
 
   return inside_index, np.array([new_X, new_Y, new_Z]).T
 
-def extract_poles_inside_at_timestep(suite_name, halo_row, data, timestep=0, timedata_dir="timedata/isolated"):
+def extract_poles_inside_at_timestep(suite_name: str, halo_row: Literal[0,1], data: np.ndarray, timestep: int = 0, timedata_dir: str="timedata/isolated")->np.ndarray:
+  """extract poles of subhalos inside the virial radius at timestep
+
+  Args:
+      suite_name (str): name of the current suite
+      halo_row (Literal[0,1]): row of the host halo
+      data (np.ndarray): original data
+      timestep (int, optional): time step to extract. Defaults to 0.
+      timedata_dir (str, optional): directory of the timedata. Defaults to "timedata/isolated".
+
+  Returns:
+      np.ndarray: ndarray of shape (n, 3) representing poles
+  """
   _, pos, vec = extract_inside_at_timestep(suite_name, halo_row, data, timestep=timestep, isVel=True, timedata_dir=timedata_dir)
   poles = np.cross(pos, vec)
   temp = np.sum(poles**2, axis=1)**(1/2)
   poles = (poles.T/temp).T
   return poles
 
-def read_MW():
+def read_MW()->list[np.ndarray]:
+  """read MW data
+
+  Returns:
+      list[np.ndarray]: pos, vec of MW subhalos
+  """
   MW = pd.read_csv('../../Data/pawlowski_tab2.csv')
 
   X_MW = MW['x']
@@ -400,7 +578,12 @@ def read_MW():
 
   return X_MW, Y_MW, Z_MW, Vx_MW, Vy_MW, Vz_MW
 
-def get_rms_MW():
+def get_rms_MW()->float:
+  """get rms of subhalos of MW
+
+  Returns:
+      float: rms of subhalos of MW
+  """
   X_MW, Y_MW, Z_MW, _, _, _ = read_MW()
 
   pos_MW = np.array([X_MW, Y_MW, Z_MW]).T
@@ -408,7 +591,12 @@ def get_rms_MW():
 
   return get_smallest_rms(pos_MW)/np.median(r_MW)
 
-def get_rms_poles_MW():
+def get_rms_poles_MW()->float:
+  """get d_sph of subhalos of MW
+
+  Returns:
+      float: get d_sph of subhalos of MW
+  """
   X_MW, Y_MW, Z_MW, Vx_MW, Vy_MW, Vz_MW = read_MW()
   pos = np.array([X_MW, Y_MW, Z_MW]).T
   vec = np.array([Vx_MW, Vy_MW, Vz_MW]).T
@@ -417,3 +605,14 @@ def get_rms_poles_MW():
   poles = (poles.T/temp).T
 
   return get_rms_poles(poles)
+
+def to_degree(angle: Union[float, np.ndarray])->Union[float, np.ndarray]:
+  """convert angle/angles from rad to degree
+
+  Args:
+      angle (Union[float, np.ndarray]): angle/angles in rad
+
+  Returns:
+      Union[float, np.ndarray]: angle/angles in degree
+  """
+  return angle/np.pi*180
