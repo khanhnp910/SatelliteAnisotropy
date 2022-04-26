@@ -693,3 +693,4 @@ def plot_hist_rms_vs_rms_poles(suite_name, halo_row, data, imgname, isDeg=True, 
 
   if saveimage:
     plt.savefig(imgname)
+

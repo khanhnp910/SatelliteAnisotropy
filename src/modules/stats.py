@@ -2,6 +2,8 @@ import numpy as np
 from typing import Union
 from scipy.special import kolmogorov 
 from deprecated import deprecated
+import tracemalloc
+import time
 
 def ks_uniformity_test(x, xbin=None):
   """
@@ -408,3 +410,92 @@ def get_rms_arr_poles_with_avg_for_k(poles: np.ndarray, iterations: int = 100000
 
   return get_rms_arr_poles_with_avg(chosen_poles)
 
+def get_d_sph_flipped__(poles: np.ndarray, normal_vectors: np.ndarray, num_chosen: int = 11)->float:
+  """get d_sph_flipped of poles for given normal_vectors
+
+  Args:
+      poles (np.ndarray): ndarray of shape (n,3)
+      normal_vectors (np.ndarray): ndarray of shape (m,3)
+      num_chosen (int, optional): the number of closest poles. Defaults to 11.
+
+  Returns:
+      float: ndarray of shape (m,) representing the d_sph_flipped
+  """
+  # shape (n, m)
+  temp = np.abs(np.matmul(poles, normal_vectors.T))
+
+  # shape (n, m)
+  t0 = time.time()
+  z = np.tile(np.arange(len(normal_vectors)), (num_chosen,1))
+  sorted_indices = np.argpartition(temp, -num_chosen, axis = 0)[-num_chosen:,:]
+  print(time.time()-t0)
+  # shape (num_chosen, m)
+  chosen_temp = temp[sorted_indices, z]
+
+  # shape (num_chosen, m)
+  angles = np.arccos(chosen_temp)
+
+  # shape (m,)
+  d_sph = np.mean(angles**2, axis=0)**(1/2)
+
+  return d_sph
+
+def get_d_sph_flipped(poles: np.ndarray, normal_vectors: np.ndarray)->float:
+  """get d_sph_flipped for all of the poles
+
+  Args:
+      poles (np.ndarray): ndarray of shape (n, 3)
+      normal_vectors (np.ndarray): ndarray of shape (m, 3)
+
+  Returns:
+      float: d_sph_flipped of all the poles
+  """
+  # shape (n, m)
+  temp = np.abs(np.matmul(poles, normal_vectors.T))
+
+  # shape (n, m)
+  angles = np.arccos(temp)
+
+  # shape (m,)
+  d_sph = np.mean(angles**2, axis = 0) ** (1/2)
+
+  return d_sph
+
+def get_arr_d_sph_flipped(arr_poles: np.ndarray, normal_vectors: np.ndarray)->tuple[np.ndarray, np.ndarray]:
+  """get arrays of d_sph_flipped of l groups of poles, each containing n poles
+
+  Args:
+      arr_poles (np.ndarray): ndarray of shape (l, n, 3)
+      normal_vectors (np.ndarray): ndarray of shape (m, 3)
+
+  Returns:
+      tuple[np.ndarray, np.ndarray]: arrays of d_sph_flipped
+  """
+  # shape (l, n, m)
+  temp = np.abs(np.matmul(arr_poles, normal_vectors.T))
+
+  # shape (l, n, m)
+  angles = np.arccos(temp)
+  
+  # shape (l, m)
+  d_sph = np.mean(angles**2, axis = 1) ** (1/2)
+
+  return d_sph
+
+def get_smallest_arr_d_sph_flipped(arr_poles: np.ndarray, num_random_points: int=5000)->np.ndarray:
+  """get arrays of d_sph_flipped of l groups of poles, each containing n poles
+
+  Args:
+      arr_poles (np.ndarray): ndarray of shape (l, n, 3)
+      num_random_points (int, optional): number of random normal vectors generated. Defaults to 5000.
+
+  Returns:
+      np.ndarray: ndarray of shape (l,)
+  """
+  # shape (num_random_points, 3)
+  normal_vectors = sample_spherical_pos(size=num_random_points)
+
+  # shape (l, num_random_points)
+  d_sph = get_arr_d_sph_flipped(arr_poles, normal_vectors)
+
+  return np.min(d_sph, axis = 1)
