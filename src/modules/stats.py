@@ -476,7 +476,7 @@ def get_arr_d_sph_flipped(arr_poles: np.ndarray, normal_vectors: np.ndarray)->tu
 
   # shape (l, n, m)
   angles = np.arccos(temp)
-  
+
   # shape (l, m)
   d_sph = np.mean(angles**2, axis = 1) ** (1/2)
 
@@ -499,3 +499,17 @@ def get_smallest_arr_d_sph_flipped(arr_poles: np.ndarray, num_random_points: int
   d_sph = get_arr_d_sph_flipped(arr_poles, normal_vectors)
 
   return np.min(d_sph, axis = 1)
+
+def get_arr_d_sph_flipped_from_angles(arr_angles: np.ndarray)->np.ndarray:
+  """get the d_sph from angles
+
+  Args:
+      arr_angles (np.ndarray): ndarray of shape (l, k, m)
+
+  Returns:
+      np.ndarray: ndarray of shape (l,)
+  """
+  # shape (l, m)
+  d_sph = np.mean(arr_angles**2, axis = 1)**(1/2)
+
+  return np.min(d_sph, axis=1)
