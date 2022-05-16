@@ -13,17 +13,23 @@ import __main__
 
 
 # Insert suite name here
-suite_name = argv[1] if len(argv)>1 else 'iBurr'
-select_by_Rvir = True if argv[2] == '0' else False
-_300kpc = "" if select_by_Rvir else "_300kpc"
+if len(argv) > 1:
+  suite_name = argv[1]
+  select_by_Rvir = True if argv[2] == '0' else False
+  _300kpc = "" if select_by_Rvir else "_300kpc"
+
+else:
+  suite_name = 'iBurr'
+  select_by_Rvir = False
+  _300kpc = "" if select_by_Rvir else "_300kpc"
 
 if suite_name[0] == 'i':
   suite_dir = f'../../elvis_isolated'
-  filename = f'../../Data/log_brightest_elvis_isolated{_300kpc}_v3/{suite_name}.csv'
+  filename = f'../../Data/log_brightest_elvis_isolated{_300kpc}_v3.1/{suite_name}.csv'
   suite_name_decorated = elvis_name_template.substitute(suite_name=suite_name)
 else:
   suite_dir = f'../../caterpillar_zrei8_5_fix'
-  filename = f'../../Data/log_brightest_caterpillar{_300kpc}_v3/{suite_name}.csv'
+  filename = f'../../Data/log_brightest_caterpillar{_300kpc}_v3.1/{suite_name}.csv'
   suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
 
 data = read_halo(suite_name_decorated, suite_dir)
@@ -33,7 +39,7 @@ with open(filename, "w", newline='') as file:
   writer = csv.writer(file, delimiter=',')
   writer.writerow(["D_rms", "R_med", "D_sph_11","D_sph_10","D_sph_9","D_sph_8","D_sph_7","D_sph_6","D_sph_5","D_sph_4","D_sph_3"])
 
-iterations = 10000
+iterations = 50000
 # chunk_size = 200
 # num_time = iterations // chunk_size
 
