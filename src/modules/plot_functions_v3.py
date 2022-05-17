@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 import scipy.optimize as opt
 from modules.helper_functions_v3 import get_MW, read_specific, to_spherical
-from modules.stats_v3 import get_D_sph, get_R_med, get_smallest_D_rms
+from modules.stats_v3 import get_D_sph, get_R_med, get_D_rms
 
 from .stats_v3 import conf_interval
 from .helper_functions_v3 import normalize, to_degree
@@ -72,28 +72,90 @@ def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5),
     plt.show()
   return ax
 
-def plot_vectors_v2(vectors, arr_mass, img_name, title="", ax = None, saveimage = False):  
+def plot_vectors(vectors, img_name=None, save_dir=None, title=None, size=None, ax=None, saveimage=False):
+  """plot vectors in aitoff projection
+
+  Parameters
+  ----------
+  vectors : array
+      vectors in spherical coordinates of shape (n, 2)
+  img_name : str, optional
+      filename of the plot, by default None
+  save_dir : str, optional
+      save directory of the plot, by default None
+  size : array, optional
+      size of quantities of shape (n,), by default None
+  title : str, optional
+      title of the plot, by default None
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
+  if img_name is None or save_dir is None:
+    saveimage = False
+
   vectors = normalize(vectors)
+  if size is None:
+    size = np.ones_like(vectors[:,0], dtype='float')
 
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot(111, projection="aitoff")
 
   ax.scatter(vectors[:,1], vectors[:,0], marker = '.', 
-                          s = (arr_mass/max(arr_mass))**(2/5)*200)
+                          s = (size/np.max(size))**(2/5)*200)
   plt.rcParams['axes.titley'] = 1.1
-  ax.title(title)
+  if title is not None:
+    ax.title(title)
   ax.grid(True)
 
   if saveimage:
-    plt.savefig(img_name)
+    plt.savefig(f'{save_dir}/{img_name}')
 
 def plot3D(vectors, ax = None):
+  """plot 3D vectors
+
+  Parameters
+  ----------
+  vectors : array
+      array of shape (n, 3)
+  ax : Axes, optional
+      Axes of the plot, by default None
+  """
   if ax is None:
     ax = plt.figure().add_subplot(projection='3d')
   ax.set_box_aspect(aspect = (1,1,1))
   ax.scatter(vectors[:,0],vectors[:,1],vectors[:,2])
 
-def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, is_heaviest=False, select_by_Rvir=True, seed=None, save_dir="", ax=None, saveimage=False):
+def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
+                    is_heaviest=False, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
+  """plot distribution of D_rms dispersion
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data_surv_probs_dir : str
+      directory of the generated data with surv_probs
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_heaviest : bool, optional
+      plot for heaviest if True, by default False
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   df = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms', 'R_med'])
   df_surv_probs = pd.read_csv(f"{data_surv_probs_dir}/{suite_name}.csv", usecols=['D_rms', 'R_med'])
 
@@ -117,11 +179,11 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir
   data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=None, num_D_sph_flipped=None)
 
   ax.arrow(data_MW['D_rms']/data_MW['R_med'],0,0,0.5, label="MW",color='orangered',head_width=0.01,head_length=0.3)
-  ax.arrow(get_smallest_D_rms(pos_brightest_without_surv_probs)['D_rms']/get_R_med(pos_brightest_without_surv_probs)['R_med'],0,0,0.5, label="brightest without surv_probs",color='c',head_width=0.01,head_length=0.1)
+  ax.arrow(get_D_rms(pos_brightest_without_surv_probs)['D_rms']/get_R_med(pos_brightest_without_surv_probs)['R_med'],0,0,0.5, label="brightest without surv_probs",color='c',head_width=0.01,head_length=0.1)
 
   if brightest_dir is None:
     pos_brightest = read_specific(data, type='brightest', seed=seed, select_by_Rvir=select_by_Rvir)['pos']
-    ax.arrow(get_smallest_D_rms(pos_brightest)['D_rms']/get_R_med(pos_brightest)['R_med'],0,0,0.5, label="brightest",color='y',head_width=0.01,head_length=0.1)
+    ax.arrow(get_D_rms(pos_brightest)['D_rms']/get_R_med(pos_brightest)['R_med'],0,0,0.5, label="brightest",color='y',head_width=0.01,head_length=0.1)
   else:
     data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv', usecols=['D_rms', 'R_med'])
     kernel_brightest = gaussian_kde(data_brightest_sampled['D_rms']/data_brightest_sampled['R_med'])
@@ -130,8 +192,8 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir
   if is_heaviest:
     pos_heaviest = read_specific(data, type='heaviest', seed=seed, select_by_Rvir=select_by_Rvir)['pos']
     pos_heaviest_without_surv_probs = read_specific(data, type='heaviest', is_surv_probs=False, seed=seed, select_by_Rvir=select_by_Rvir)['pos']
-    ax.arrow(get_smallest_D_rms(pos_heaviest)['D_rms']/get_R_med(pos_heaviest)['R_med'],0,0,0.5, label="heaviest",color='g',head_width=0.01,head_length=0.2)
-    ax.arrow(get_smallest_D_rms(pos_heaviest_without_surv_probs)['D_rms']/get_R_med(pos_heaviest_without_surv_probs)['R_med'],0,0,0.5, label="heaviest without surv_probs",color='k',head_width=0.01,head_length=0.2)
+    ax.arrow(get_D_rms(pos_heaviest)['D_rms']/get_R_med(pos_heaviest)['R_med'],0,0,0.5, label="heaviest",color='g',head_width=0.01,head_length=0.2)
+    ax.arrow(get_D_rms(pos_heaviest_without_surv_probs)['D_rms']/get_R_med(pos_heaviest_without_surv_probs)['R_med'],0,0,0.5, label="heaviest without surv_probs",color='k',head_width=0.01,head_length=0.2)
 
   ax.set_title('The distribution of the D_rms dispersions')
   ax.set_xlabel('$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$')
@@ -142,7 +204,20 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir
   if saveimage:
     plt.savefig(f"{save_dir}/distribution_D_rms_over_R_med_dispersion_for_{suite_name}.pdf")
 
-def plot_circle_around_vector(average_pole, d_angle, ax=None,label=""):
+def plot_circle_around_vector(average_pole, d_angle, ax=None, label=""):
+  """plot circle around a vector
+
+  Parameters
+  ----------
+  average_pole : array
+      array of shape (3,)
+  d_angle : float
+      D_sph in rad
+  ax : Axes, optional
+      Axes of the plot, by default None
+  label : str, optional
+      label of the plot, by default ""
+  """
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot(projection='aitoff')
   x, y, z = average_pole
@@ -171,7 +246,31 @@ def plot_circle_around_vector(average_pole, d_angle, ax=None,label=""):
   ax.grid(True)
   plt.rcParams['axes.titley'] = 1.1
 
-def plot_poles_brightest(suite_name, data, select_by_Rvir=True, seed=None, save_dir="", num_chosen=11, ax=None, saveimage=False):
+def plot_poles_brightest(suite_name, data, select_by_Rvir=False, seed=None, save_dir="", 
+                    num_chosen=11, ax=None, saveimage=False):
+  """plot brightest poles with D_sph for num_chosen
+
+  Note: without surv_probs
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data : dataframe 
+      dataframe containing relevant attributes
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : int, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  num_chosen : int, optional
+      number of chosen brightest subhalos, by default 11
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot(111, projection="aitoff")
 
@@ -202,7 +301,31 @@ def plot_poles_brightest(suite_name, data, select_by_Rvir=True, seed=None, save_
   if saveimage:
     plt.savefig(f"{save_dir}/plot_poles_brightest_for_{suite_name}.pdf")
 
-def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=True, seed=None, save_dir="", num_chosen=11, ax=None, saveimage=False):
+def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False, seed=None, save_dir="", 
+                    num_chosen=11, ax=None, saveimage=False):
+  """plot brightest poles with D_sph for num_chosen with the best config
+
+  Note: without surv_probs
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data : dataframe 
+      dataframe containing relevant attributes
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : int, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  num_chosen : int, optional
+      number of chosen brightest subhalos, by default 11
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot(111, projection="aitoff")
   
@@ -236,13 +359,37 @@ def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=True, seed
   ax.grid(True)
   plt.rcParams['axes.titley'] = 1.1
   ax.set_title(f"Distribution of brightest poles config for {suite_name}")
-  ax.set_xlabel("$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$: "+"{:.2f}".format(get_smallest_D_rms(pos)['D_rms']/get_R_med(pos)['R_med'])+"-$\\Delta_{\\textrm{sph}}: $"+"{:.2f}$^\circ$".format(to_degree(d_angle)))
+  ax.set_xlabel("$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$: "+"{:.2f}".format(get_D_rms(pos)['D_rms']/get_R_med(pos)['R_med'])+"-$\\Delta_{\\textrm{sph}}: $"+"{:.2f}$^\circ$".format(to_degree(d_angle)))
   ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
 
   if saveimage:
     plt.savefig(f"{save_dir}/plot_poles_brightest_with_config_for_{suite_name}.pdf")
 
-def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="", select_by_Rvir=True, seed=None, num_chosen=11, ax=None, saveimage=False):
+def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="", select_by_Rvir=False, seed=None, 
+                    num_chosen=11, ax=None, saveimage=False):
+  """plot D_sph as a function of k with/without surv_probs
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : int, optional
+      set random seed, by default None
+  num_chosen : int, optional
+      number of chosen brightest subhalos, by default 11
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   if ax is None:
     ax = plt.figure(figsize=(8, 6)).add_subplot()
   
@@ -302,14 +449,45 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="",
   if saveimage:
     plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf")
 
-def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, is_heaviest=False, k=11, select_by_Rvir=True, seed=None, save_dir="", saveimage=False):
+def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
+  """plot distribution of D_rms dispersion
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data_surv_probs_dir : str
+      directory of the generated data with surv_probs
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_heaviest : bool, optional
+      plot for heaviest if True, by default False
+  k : int, optional
+      _description_, by default 11
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   df = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=[f'D_sph_{k}'])
   df_surv_probs = pd.read_csv(f"{data_surv_probs_dir}/{suite_name}.csv", usecols=[f'D_sph_{k}'])
 
   d_sphs = to_degree(df[f'D_sph_{k}'])
   d_sphs_surv_probs = to_degree(df_surv_probs[f'D_sph_{k}'])
 
-  fig, ax = plt.subplots(figsize=(8,6))
+  if ax is None:
+    _, ax = plt.subplots(figsize=(8,6))
 
   points = np.linspace(0, 180, num = 1000)
 
@@ -357,10 +535,41 @@ def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir
 
   ax.set_title(f'The distribution of the D_sph({k}) dispersions')
   if saveimage:
-    fig.savefig(f"{save_dir}/distribution_D_sph_dispersion_for_{suite_name}.pdf")
+    plt.savefig(f"{save_dir}/distribution_D_sph_dispersion_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, is_heaviest=False, k=11, select_by_Rvir=True, seed=None, save_dir="", saveimage=False):
-  fig, ax = plt.subplots(figsize=(8,6))
+def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
+  """histogram of D_rms/R_med vs D_sph
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_surv_probs : bool, optional
+      True if the sample of size k uses surv_probs, by default False
+  is_heaviest : bool, optional
+      include  heaviest if True, by default False
+  k : int, optional
+      number of subhalos, by default 11
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
+  if ax is None:
+    fig, ax = plt.subplots(figsize=(8,6))
 
   dic = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms','R_med',f'D_sph_{k}'])
 
@@ -390,7 +599,7 @@ def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_di
 
   plot_2d_dist(scaled_rms, D_sph, [xmin, xmax], [ymin, ymax], 50, 50, figsize=(5,5),fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
   ax.scatter(D_rms_MW/R_med_MW, D_sph_MW, label='MW', marker='x', c='orangered', s=100)
-  ax.scatter(get_smallest_D_rms(data_brightest_without_surv_probs['pos'])['D_rms']/get_R_med(data_brightest_without_surv_probs['pos'])['R_med'], 
+  ax.scatter(get_D_rms(data_brightest_without_surv_probs['pos'])['D_rms']/get_R_med(data_brightest_without_surv_probs['pos'])['R_med'], 
       to_degree(np.min(get_D_sph(chosen_poles_brightest_without_surv_probs)['D_sph'])), label='brightest without surv_probs', marker='x', c='c', s=100)
 
   if brightest_dir is None:
@@ -398,7 +607,7 @@ def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_di
     poles_brightest = data_brightest['poles']
     chosen_poles_brightest = poles_brightest[indices]
 
-    ax.scatter(get_smallest_D_rms(data_brightest['pos'])['D_rms']/get_R_med(data_brightest['pos'])['R_med'], 
+    ax.scatter(get_D_rms(data_brightest['pos'])['D_rms']/get_R_med(data_brightest['pos'])['R_med'], 
       to_degree(np.min(get_D_sph(chosen_poles_brightest)['D_sph'])), label='brightest', marker='x', c='y', s=100)
     
   else:
@@ -425,9 +634,9 @@ def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_di
     chosen_poles_heaviest = poles_heaviest[indices]
     chosen_poles_heaviest_without_surv_probs = poles_heaviest_without_surv_probs[indices]
 
-    ax.scatter(get_smallest_D_rms(data_heaviest['pos'])['D_rms']/get_R_med(data_heaviest['pos'])['R_med'], 
+    ax.scatter(get_D_rms(data_heaviest['pos'])['D_rms']/get_R_med(data_heaviest['pos'])['R_med'], 
       to_degree(np.min(get_D_sph(chosen_poles_heaviest)['D_sph'])), label='heaviest', marker='x', c='g', s=30)
-    ax.scatter(get_smallest_D_rms(data_heaviest_without_surv_probs['pos'])['D_rms']/get_R_med(data_heaviest_without_surv_probs['pos'])['R_med'], 
+    ax.scatter(get_D_rms(data_heaviest_without_surv_probs['pos'])['D_rms']/get_R_med(data_heaviest_without_surv_probs['pos'])['R_med'], 
       to_degree(np.min(get_D_sph(chosen_poles_heaviest_without_surv_probs)['D_sph'])), label='heaviest without surv_probs', marker='x', c='k', s=30)
 
   
@@ -438,13 +647,43 @@ def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_di
   if is_surv_probs:
     ax.set_title(f"histogram of D_rms/D_med and D_sph({k}) with surv_probs of {suite_name}")
     if saveimage:
-      fig.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf")
+      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf")
   else:
     ax.set_title(f"histogram of D_rms/D_med and D_sph({k}) of {suite_name}")
     if saveimage:
-      fig.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_for_{suite_name}.pdf")
+      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, is_heaviest=False, k=11, select_by_Rvir=True, seed=None, save_dir="", saveimage=False):
+def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
+  """histogram of D_rms vs D_sph
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_surv_probs : bool, optional
+      True if the sample of size k uses surv_probs, by default False
+  is_heaviest : bool, optional
+      include  heaviest if True, by default False
+  k : int, optional
+      number of subhalos, by default 11
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
   fig, ax = plt.subplots(figsize=(8,6))
 
   dic = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms','R_med',f'D_sph_{k}'])
@@ -472,7 +711,7 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
 
   plot_2d_dist(D_rms, D_sph, [xmin, xmax], [ymin, ymax], 50, 50, figsize=(5,5),fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
   ax.scatter(D_rms_MW, D_sph_MW, label='MW', marker='x', c='orangered', s=100)
-  ax.scatter(get_smallest_D_rms(data_brightest_without_surv_probs['pos'])['D_rms'], 
+  ax.scatter(get_D_rms(data_brightest_without_surv_probs['pos'])['D_rms'], 
       to_degree(np.min(get_D_sph(chosen_poles_brightest_without_surv_probs)['D_sph'])), label='brightest without surv_probs', marker='x', c='c', s=100)
 
   if brightest_dir is None:
@@ -480,7 +719,7 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     poles_brightest = data_brightest['poles']
     chosen_poles_brightest = poles_brightest[indices]
 
-    ax.scatter(get_smallest_D_rms(data_brightest['pos'])['D_rms'], 
+    ax.scatter(get_D_rms(data_brightest['pos'])['D_rms'], 
       to_degree(np.min(get_D_sph(chosen_poles_brightest)['D_sph'])), label='brightest', marker='x', c='y', s=100)
     
   else:
@@ -507,9 +746,9 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     chosen_poles_heaviest = poles_heaviest[indices]
     chosen_poles_heaviest_without_surv_probs = poles_heaviest_without_surv_probs[indices]
 
-    ax.scatter(get_smallest_D_rms(data_heaviest['pos'])['D_rms'], 
+    ax.scatter(get_D_rms(data_heaviest['pos'])['D_rms'], 
       to_degree(np.min(get_D_sph(chosen_poles_heaviest)['D_sph'])), label='heaviest', marker='x', c='g', s=30)
-    ax.scatter(get_smallest_D_rms(data_heaviest_without_surv_probs['pos'])['D_rms'], 
+    ax.scatter(get_D_rms(data_heaviest_without_surv_probs['pos'])['D_rms'], 
       to_degree(np.min(get_D_sph(chosen_poles_heaviest_without_surv_probs)['D_sph'])), label='heaviest without surv_probs', marker='x', c='k', s=30)
 
   ax.set_xlabel("$\\Delta_{\\textrm{rms}} (\\textrm{kpc})$")

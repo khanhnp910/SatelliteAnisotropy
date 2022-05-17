@@ -1,8 +1,7 @@
 import numpy as np
-from typing import Union
 from scipy.special import kolmogorov 
-import time
 
+# import time
 # import tracemalloc
 
 def ks_uniformity_test(x, xbin=None):
@@ -34,6 +33,18 @@ def conf_interval(x, pdf, conf_level):
   return np.sum(pdf[pdf > x])-conf_level
 
 def sample_spherical_angle(size):
+  """sample spherical angles phi, theta
+
+  Parameters
+  ----------
+  size : int or tuple
+      shape of the angles (a_1, ..., a_l)
+
+  Returns
+  -------
+  tuples of arrays
+      phi, theta arrays of shape (a_1, ..., a_l)
+  """
   # shape of size
   phi = np.random.uniform(size=size) * 2 * np.pi
   theta = np.arccos(1-2*np.random.uniform(size=size))
@@ -41,6 +52,18 @@ def sample_spherical_angle(size):
   return phi, theta
 
 def sample_spherical_pos(size):
+  """_summary_
+
+  Parameters
+  ----------
+  size : int or tuple
+      shape of the angles (a_1, ..., a_l)
+
+  Returns
+  -------
+  array 
+      normalized vectors of shape (a_1, ..., a_l, 3)
+  """
   # shape of size
   phi, theta = sample_spherical_angle(size=size)
 
@@ -51,12 +74,25 @@ def sample_spherical_pos(size):
 
   return np.moveaxis(np.array([X,Y,Z]), 0, -1)
 
-def get_D_rms(pos, normal_vectors, isCoef = False):
-  """calculate the rms of pos with respect to the normal_vectors
+def _get_D_rms(pos, normal_vectors, isCoef = False):
+  """calculate the D_rms from pos and normal_vectors
 
-  Args:
-      pos (_type_): (a_1, a_2, ..., a_l, n, k) array
-      normal_vectors (_type_): (m, k) array
+  Ax + By + Cz = D represents the plane of smallest D_rms in the direction (A, B, C)
+
+  Parameters
+  ----------
+  pos : array
+      array of shape (a_1, a_2, ..., a_l, k) where k is dimension
+  normal_vectors : array
+      array of shape (m, k) of normal vectors considering 
+  isCoef : bool, optional
+      true if offset coefficient D is returned, by default False
+
+  Returns
+  -------
+  dictionary
+      dic['D_rms']: array of D_rms of shape (a_1, a_2, ..., a_l, m)
+      dic['coef']: array of offset coefficient D of shape (a_1, a_2, ..., a_l,m), is returned if isCoef is True
   """
   # shape (a_1, a_2, ..., a_l, n, m)
   prod = np.matmul(pos, normal_vectors.T)
@@ -65,27 +101,45 @@ def get_D_rms(pos, normal_vectors, isCoef = False):
   coef = np.mean(prod, axis=-2)
   
   # shape (a_1, a_2, ..., a_l, m)
-  rms = np.mean((np.moveaxis(prod, -2, 0)-coef)**2, axis = 0) ** (1/2)
+  D_rms = np.mean((np.moveaxis(prod, -2, 0)-coef)**2, axis = 0) ** (1/2)
 
-  dic = {'D_rms': rms}
+  dic = {'D_rms': D_rms}
   if isCoef:
     dic['coef'] = coef
 
   return dic
 
-def get_smallest_D_rms(pos, num_random=5000, normal_vectors=None, isCoef=False, isAvg=False):
-  """_summary_
+def get_D_rms(pos, num_random=5000, normal_vectors=None, isCoef=False, isAvg=False):
+  """calculate the D_rms from pos
 
-  Args:
-      pos (_type_): (a_1, a_2, ..., a_l, n, 3) array
-      isCoef (bool): _description_
-      isAvg (bool): _description_
+  Ax + By + Cz = D represents the plane of smallest D_rms in the direction (A, B, C)
+
+  Parameters
+  ----------
+  pos : array
+      array of shape (a_1, a_2, ..., a_l, 3)
+  num_random : int, optional
+      number of random direction generated if normal_vectors is None, by default 5000
+  normal_vectors : array, optional
+      directions to calculate D_rms, by default None
+  isCoef : bool, optional
+      true if offset coefficient D is returned, by default False
+  isAvg : bool, optional
+      true if normal vector (A, B, C) is returned, by default False
+
+  Returns
+  -------
+  dictionary
+      dic['D_rms']: array of D_rms of shape (a_1, a_2, ..., a_l)
+      dic['coef']: array of offset coefficient D of shape (a_1, a_2, ..., a_l), is returned if isCoef is True
+      dic['avg]: array of normal vectors (A, B, C) of shape (a_1, a_2, ..., a_l, 3), is returned if isAvg is True
   """
   # shape (num_random, 3)
   if normal_vectors is None:
     normal_vectors = sample_spherical_pos(num_random)
 
-  temp_dic = get_D_rms(pos, normal_vectors, isCoef = isCoef)
+  # result dic
+  temp_dic = _get_D_rms(pos, normal_vectors, isCoef = isCoef)
 
   # shape (a_1, a_2, ..., a_l)
   min_d_rms = np.amin(temp_dic['D_rms'], axis=-1)
@@ -95,7 +149,7 @@ def get_smallest_D_rms(pos, num_random=5000, normal_vectors=None, isCoef=False, 
   indices = None
 
   if isCoef:
-    # shape = (a_1,...,a_l)
+    # shape (a_1, a_2, ..., a_l)
     shape = min_d_rms.shape
     
     # shape (a_1, a_2, ..., a_l)
@@ -114,8 +168,11 @@ def get_smallest_D_rms(pos, num_random=5000, normal_vectors=None, isCoef=False, 
 
       tuple_shape.append(arange_broadcasted)
 
+    # tuple of arrays of shape (a_1, a_2, ..., a_l)
     tuple_shape.append(indices)
     tuple_shape = tuple(tuple_shape)
+
+    # extract offset coefficients
     dic['coef'] = temp_dic['coef'][tuple_shape]
 
   if isAvg:
@@ -129,47 +186,70 @@ def get_smallest_D_rms(pos, num_random=5000, normal_vectors=None, isCoef=False, 
   return dic
 
 def get_R_med(pos):
-  """_summary_
+  """calculate R_med from pos
 
-  Args:
-      pos (_type_): (a_1, a_2, ..., a_l, n, k) array
+  Parameters
+  ----------
+  pos : array
+      array of shape (a_1, a_2, ..., a_l, 3)
+
+  Returns
+  -------
+  dictionary
+      dic['R_med']: array of R_med of shape (a_1, a_2, ..., a_l)
   """
   # shape (a_1, a_2, ..., a_l)
   return {"R_med": np.median(np.sum(pos**2, axis=-1)**(1/2), axis=-1)}
 
 def get_D_sph(poles, isAvg = False):
-  """_summary_
+  """calculate D_sph from poles
 
-  Args:
-      poles (_type_): (a_1, a_2, ..., a_l, n, k) array
-      isAvg (bool, optional): _description_. Defaults to False.
+  Parameters
+  ----------
+  poles : array
+      array of shape (a_1, a_2, ..., a_l, n, k)
+  isAvg : bool, optional
+      true if average direction is returned, by default False
+
+  Returns
+  -------
+  dictionary
+      dic['D_sph']: array of D_sph of shape (a_1, a_2, ..., a_l)
+      dic['avg']: array of average direction of shape (a_1, a_2, ..., a_l, k)
   """
-  # shape (a_1, ..., a_l, k)
+  # shape (a_1, ..., a_l, 3)
   avg = np.sum(poles, axis=-2)
 
   # shape (a_1, ..., a_l)
   norm = np.sum(avg**2, axis=-1)**(1/2)
 
-  # shape (a_1, ..., a_l, k)
+  # shape (a_1, ..., a_l, 3)
   avg = np.moveaxis(np.moveaxis(avg, -1, 0)/norm, 0, -1)
 
-  # shape (a_1, ..., a_l, n)
-  d_sph = np.mean(np.arccos(np.moveaxis(np.sum(np.moveaxis(poles, -2, 0)*avg, axis=-1), 0, -1))**2, axis=-1)**(1/2)
+  # shape (a_1, ..., a_l)
+  D_sph = np.mean(np.arccos(np.sum(np.moveaxis(poles, -2, 0)*avg, axis=-1))**2, axis=0)**(1/2)
 
-  dic = {'D_sph': d_sph}
+  dic = {'D_sph': D_sph}
 
   if isAvg:
     dic['avg'] = avg
 
   return dic
 
-def get_D_sph_flipped(poles, normal_vectors):
-  """_summary_
+def _get_D_sph_flipped(poles, normal_vectors):
+  """calculate D_sph_flipped from poles in given direction of normal_vecors
 
-  Args:
-      poles (_type_): (a_1, a_2, ..., a_l, n, k)
-      normal_vectors (_type_): _description_
-      isAvg (bool, optional): _description_. Defaults to False.
+  Parameters
+  ----------
+  poles : array
+      array of shape (a_1, a_2, ..., a_l, n, k)
+  normal_vectors : array
+      array of shape (m, k) of normal vectors considering 
+
+  Returns
+  -------
+  dictionary
+      dic['D_sph_flipped']: array of D_sph_flipped of shape (a_1, a_2, ..., a_l, m)
   """
   # shape (a_1, ..., a_l, n, m)
   prod = np.abs(np.matmul(poles, normal_vectors.T))
@@ -178,26 +258,37 @@ def get_D_sph_flipped(poles, normal_vectors):
   angles = np.arccos(prod)
 
   # shape (a_1, ..., a_l, m)
-  d_sph_flipped = np.mean(angles**2, axis=-2)**(1/2)
+  D_sph_flipped = np.mean(angles**2, axis=-2)**(1/2)
 
-  dic = {'D_sph_flipped': d_sph_flipped}
+  dic = {'D_sph_flipped': D_sph_flipped}
 
   return dic
 
-def get_smallest_D_sph_flipped(poles, num_random=5000, normal_vectors=None, isAvg=False):
-  """_summary_
+def get_D_sph_flipped(poles, num_random=5000, normal_vectors=None, isAvg=False):
+  """calculate D_sph_flipped from poles
 
-  Args:
-      poles (_type_): (a_1, a_2, ..., a_l, n, 3)
-      num_random (int, optional): _description_. Defaults to 5000.
-      normal_vectors (_type_, optional): _description_. Defaults to None.
-      isAvg (bool, optional): _description_. Defaults to False.
+  Parameters
+  ----------
+  poles : array
+      array of shape (a_1, a_2, ..., a_l, n, 3)
+  num_random : int, optional
+      number of random direction generated if normal_vectors is None, by default 5000
+  normal_vectors : array, optional
+      array of shape (m, 3) of normal vectors considering , by default None
+  isAvg : bool, optional
+      true if average direction is returned, by default False
+
+  Returns
+  -------
+  dictionary
+      dic['D_sph_flipped']: array of D_sph_flipped of shape (a_1, a_2, ..., a_l)
+      dic['avg']: array of average direction of shape (a_1, a_2, ..., a_l, k)
   """
   if normal_vectors is None:
     normal_vectors = sample_spherical_pos(num_random)
 
   # shape (a_1, ..., a_l, m)
-  d_sph_flipped_arr = get_D_sph_flipped(poles, normal_vectors)['D_sph_flipped']
+  d_sph_flipped_arr = _get_D_sph_flipped(poles, normal_vectors)['D_sph_flipped']
 
   # shape (a_1, ..., a_l)
   dic = {'D_sph_flipped': np.amin(d_sph_flipped_arr, axis=-1)}
@@ -206,32 +297,46 @@ def get_smallest_D_sph_flipped(poles, num_random=5000, normal_vectors=None, isAv
     # shape (a_1, a_2, ..., a_l)
     indices = np.argmin(d_sph_flipped_arr, axis=-1)
 
-    # shape (a_1, a_2, ..., a_l, k)
+    # shape (a_1, a_2, ..., a_l, 3)
     dic['avg'] = normal_vectors[indices,:]
 
   return dic
 
 def get_D_sph_flipped_from_angles(angles):
-  """_summary_
+  """calculate D_sph_flipped from angles
 
-  Args:
-      angles (_type_): (a_1, a_2, ..., a_l, n)
+  Parameters
+  ----------
+  angles : array
+      array of shape (a_1, a_2, ..., a_l, n, m)
+
+  Returns
+  -------
+  dictionary
+      dic['D_sph_flipped']: array of D_sph_flipped of shape (a_1, a_2, ..., a_l, m)
   """
+  # shape (a_1, a_2, ..., a_l, m)
+  D_sph_flipped = np.mean(angles**2, axis=-2)**(1/2)
 
-  return 
+  return {'D_sph_flipped': D_sph_flipped}
 
-def random_choice_noreplace(m: int, n: int, k:int)->np.ndarray:
+def random_choice_noreplace(m, n, k):
   """generate m sets of indices from 0 to n-1, each set has k elements
 
-  Args:
-      m (int): number of iterations
-      n (int): indices range
-      k (int): number of indices in the indices range
+  Parameters
+  ----------
+  m : int
+      number of iterations
+  n : int
+      indices range
+  k : int
+      number of indices in the indices range
 
-  Returns:
-      np.ndarray: ndarray of shape (m,k) representing m sets of indices from 0 to n-1, each set has k elements
+  Returns
+  -------
+      array of shape (m,k) representing m sets of indices from 0 to n-1, each set has k elements
   """
-
   return np.random.rand(m,n).argsort(axis=-1)[:,:k]
+  
 
 

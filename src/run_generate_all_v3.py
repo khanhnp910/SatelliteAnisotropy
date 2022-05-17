@@ -3,7 +3,7 @@ import os
 state = True
 
 if state:
-  filename = 'test2_v3'
+  filename = 'generate_distribution_v3'
 
   caterpillar_dir = '../../caterpillar_zrei8_5_fix'
   caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
