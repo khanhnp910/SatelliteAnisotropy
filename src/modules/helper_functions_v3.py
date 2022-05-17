@@ -171,6 +171,7 @@ def get_MW(MW_path='../../Data/pawlowski_tab2.csv', is_D_rms=True, is_R_med=True
       for num in num_D_sph:
         chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num)))]
         dic['D_sph'][num] = np.min(get_D_sph(chosen_poles)['D_sph'])
+        dic[f'D_sph_{num}'] = dic['D_sph'][num]
 
   if num_D_sph_flipped is not None:
     if type(num_D_sph_flipped) is int:
@@ -181,6 +182,7 @@ def get_MW(MW_path='../../Data/pawlowski_tab2.csv', is_D_rms=True, is_R_med=True
       for num in num_D_sph_flipped:
         chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num)))]
         dic['D_sph_flipped'][num] = np.min(get_D_sph_flipped(chosen_poles)['D_sph_flipped'])
+        dic[f'D_sph_flipped_{num}'] = dic['D_sph_flipped'][num]
 
   return dic
 

@@ -1,16 +1,16 @@
 from itertools import combinations
-import random
+import os
 from matplotlib.colors import LogNorm
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.stats import gaussian_kde
 import scipy.optimize as opt
-from modules.helper_functions_v3 import get_MW, read_specific, to_spherical
+from modules.helper_functions_v3 import get_MW, read_specific, to_spherical, caterpillar_name_template, elvis_name_template
 from modules.stats_v3 import get_D_sph, get_R_med, get_D_rms
 
 from .stats_v3 import conf_interval
-from .helper_functions_v3 import normalize, to_degree
+from .helper_functions_v3 import normalize, read_halo, to_degree
 
 def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5), 
                 cmin=1.e-4, cmax=1.0, smooth=None, xpmax=None, ypmax=None, 
@@ -763,3 +763,146 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     ax.set_title(f"histogram of D_rms and D_sph({k}) of {suite_name}")
     if saveimage:
       fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
+
+def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, savefig=False):
+  if save_dir is None:
+    savefig=False
+
+  caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
+  elvis_names = [name for name in os.listdir(elvis_isolated_dir) if os.path.isdir(elvis_isolated_dir+'/'+name)]
+
+  suite_names = elvis_names + caterpillar_names
+  select_by_Rvir = False
+
+  X_elvis_isolated = []
+  Y_elvis_isolated = []
+  X_caterpillar = []
+  Y_caterpillar = []
+
+  if is_surv_probs:
+    X_err_elvis_isolated = [[],[]]
+    Y_err_elvis_isolated = [[],[]]
+    X_err_caterpillar = [[],[]]
+    Y_err_caterpillar = [[],[]]
+
+  fig, ax = plt.subplots(figsize=(8,6))
+
+  for suite_name in suite_names:
+    print(f"Running for {suite_name}")
+    if suite_name[0] == 'i':
+      suite_dir = elvis_isolated_dir
+      suite_name_decorated = elvis_name_template.substitute(suite_name=suite_name)
+      brightest_dir = brightest_dir_template.substitute(catalog='elvis_isolated')
+      X = X_elvis_isolated
+      Y = Y_elvis_isolated
+      if is_surv_probs:
+        X_err = X_err_elvis_isolated
+        Y_err = Y_err_elvis_isolated
+    else:
+      suite_dir = caterpillar_dir
+      suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
+      brightest_dir = brightest_dir_template.substitute(catalog='caterpillar')
+      X = X_caterpillar
+      Y = Y_caterpillar
+      if is_surv_probs:
+        X_err = X_err_caterpillar
+        Y_err = Y_err_caterpillar
+
+    if is_surv_probs:
+      data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
+
+      if X_type == 'scaled_D_rms':
+        X_halo = data_brightest_sampled['D_rms']/data_brightest_sampled['R_med']
+      else:
+        X_halo = data_brightest_sampled[X_type]
+      
+      if Y_type == 'scaled_D_rms':
+        Y_halo = data_brightest_sampled['D_rms']/data_brightest_sampled['R_med']
+      else:
+        Y_halo = data_brightest_sampled[Y_type]
+
+      X.append(np.median(X_halo))
+      Y.append(np.median(Y_halo))
+
+      X_err[0].append(np.abs(np.percentile(X, 2.5)-np.median(X)))
+      X_err[1].append(np.abs(np.percentile(X, 97.5)-np.median(X)))
+
+      Y_err[0].append(np.abs(np.percentile(Y, 2.5)-np.median(Y)))
+      Y_err[1].append(np.abs(np.percentile(Y, 97.5)-np.median(Y)))
+
+    else:
+      data = read_halo(suite_name_decorated, suite_dir)
+      data_brightest = read_specific(data, is_surv_probs=False, select_by_Rvir=select_by_Rvir)
+      
+      types = {X_type: X, Y_type: Y}
+
+      for type_ in types.keys():
+        if type_ == 'D_rms':
+          types[type_].append(get_D_rms(data_brightest['pos'])['D_rms'])
+        if type_ == 'R_med':
+          types[type_].append(get_R_med(data_brightest['pos'])['R_med'])
+        if type_ == 'scaled_D_rms':
+          types[type_].append(get_D_rms(data_brightest['pos'])['D_rms']/get_R_med(data_brightest['pos'])['R_med'])
+        if type_[:6] == 'D_sph_':
+          k = int(type_[6:])
+          indices = np.array(list(combinations(np.arange(11),k)))
+
+          # shape (11 choose k, k, 3)
+          chosen_poles = data_brightest['poles'][indices,:]
+
+          types[type_].append(to_degree(np.min(np.around(get_D_sph(chosen_poles)['D_sph'], decimals=3), axis=-1)))
+
+  if is_surv_probs:
+    ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
+    ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
+  else:
+    ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
+    ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+  if X_type == "scaled_D_rms":
+    X_MW = data_MW['D_rms']/data_MW['R_med']
+  elif X_type[:6] == 'D_sph_':
+    X_MW = to_degree(data_MW[X_type])
+  else:
+    X_MW = data_MW[X_type]
+
+  if Y_type == "scaled_D_rms":
+    Y_MW = data_MW['D_rms']/data_MW['R_med']
+  elif Y_type[:6] == 'D_sph_':
+    Y_MW = to_degree(data_MW[Y_type])
+  else:
+    Y_MW = data_MW[Y_type]
+
+  ax.scatter(X_MW, Y_MW, label='MW', marker='^', c='y', s=100)
+
+  if X_type == 'scaled_D_rms':
+    X_label = r'$D_{\rm rms}/R_{\rm med}$'
+  elif X_type == 'D_rms':
+    X_label = r'$D_{\rm rms}$ (kpc)'
+  elif X_type == 'R_med':
+    X_label = r'$R_{\rm med}$ (kpc)'
+  else:
+    k = X_label[6:]
+    X_label = r'$D_{\rm sph}$ '+f'({k})'
+
+  if Y_type == 'scaled_D_rms':
+    Y_label = r'$D_{\rm rms}/R_{\rm med}$'
+  elif Y_type == 'D_rms':
+    Y_label = r'$D_{\rm rms}$ (kpc)'
+  elif Y_type == 'R_med':
+    Y_label = r'$R_{\rm med}$ (kpc)'
+  else:
+    k = Y_label[6:]
+    Y_label = r'$D_{\rm sph}$ '+f'({k})'
+
+  ax.set_xlabel(X_label)
+  ax.set_ylabel(Y_label)
+
+  out = '' if is_surv_probs else 'out'
+
+  ax.set_title(f'general plot {X_type} vs {Y_type} with{out} surv_probs')
+
+  if savefig:
+    plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf')
