@@ -91,13 +91,13 @@ def normalize(vectors):
 
   return normal_vectors
 
-def read_MW(MW_path='../../Data/pawlowski_tab2.csv'):
+def read_MW(MW_path='../data/pawlowski_tab2.csv'):
   """_summary_
 
   Parameters
   ----------
   MW_path : str, optional
-      path to MW data, by default '../../Data/pawlowski_tab2.csv'
+      path to MW data
 
   Returns
   -------
@@ -121,7 +121,7 @@ def read_MW(MW_path='../../Data/pawlowski_tab2.csv'):
 
   return dic
 
-def get_MW(MW_path='../../Data/pawlowski_tab2.csv', is_D_rms=True, is_R_med=True, num_D_sph=11, num_D_sph_flipped=11):
+def get_MW(MW_path='../data/pawlowski_tab2.csv', is_D_rms=True, is_R_med=True, num_D_sph=11, num_D_sph_flipped=11):
   """get relevant quantities for MW
 
   if num_D_sph is int, dic['D_sph'] is D_sph for num_D_sph
