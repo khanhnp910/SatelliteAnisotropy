@@ -11,6 +11,7 @@ from modules.stats_v3 import get_D_sph, get_R_med, get_D_rms
 
 from .stats_v3 import conf_interval
 from .helper_functions_v3 import normalize, read_halo, to_degree
+import config
 
 def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5), 
                 cmin=1.e-4, cmax=1.0, smooth=None, xpmax=None, ypmax=None, 
@@ -764,9 +765,9 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     if saveimage:
       fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, savefig=False):
+def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, saveimage=False):
   if save_dir is None:
-    savefig=False
+    saveimage=False
 
   caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
   elvis_names = [name for name in os.listdir(elvis_isolated_dir) if os.path.isdir(elvis_isolated_dir+'/'+name)]
@@ -792,7 +793,7 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
     if suite_name[0] == 'i':
       suite_dir = elvis_isolated_dir
       suite_name_decorated = elvis_name_template.substitute(suite_name=suite_name)
-      brightest_dir = brightest_dir_template.substitute(catalog='elvis_isolated')
+      brightest_dir = brightest_dir_template.substitute(gendata_dir=config.gendata_dir, catalog='elvis_isolated')
       X = X_elvis_isolated
       Y = Y_elvis_isolated
       if is_surv_probs:
@@ -801,7 +802,7 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
     else:
       suite_dir = caterpillar_dir
       suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
-      brightest_dir = brightest_dir_template.substitute(catalog='caterpillar')
+      brightest_dir = brightest_dir_template.substitute(gendata_dir=config.gendata_dir, catalog='caterpillar')
       X = X_caterpillar
       Y = Y_caterpillar
       if is_surv_probs:
@@ -903,6 +904,7 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
   out = '' if is_surv_probs else 'out'
 
   ax.set_title(f'general plot {X_type} vs {Y_type} with{out} surv_probs')
+  ax.legend()
 
-  if savefig:
+  if saveimage:
     plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf')
