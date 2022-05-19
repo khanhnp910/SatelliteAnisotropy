@@ -1,12 +1,12 @@
-import os
 from sys import argv
+from os.path import join, isdir
+from os import makedirs
+import config
 
-from modules.helper_functions_v3 import generate_distribution_with_surv_probs, elvis_name_template, caterpillar_name_template
+from modules.helper_functions_v3 import generate_distribution, elvis_name_template, caterpillar_name_template
 
-import __main__
-
-prev_suite_dir = '../..'
-data_dir = '../../Data'
+raw_dir = config.raw_dir
+gendata_dir = config.gendata_dir
 
 if len(argv) > 1:
   suite_name = argv[1]
@@ -18,17 +18,30 @@ else:
   _300kpc = "" if select_by_Rvir else "_300kpc"
 
 if suite_name[0] == 'i':
-  suite_dir = f'{prev_suite_dir}/elvis_isolated'
-  temp_dir = f'{data_dir}/log_elvis_isolated{_300kpc}_surv_probs_v3.1'
+  suite_dir = join(raw_dir, config.elvis_isolated_raw_name)
+  catalog = 'elvis_isolated'
   suite_name_decorated = elvis_name_template.substitute(suite_name=suite_name)
 else:
-  suite_dir = f'{prev_suite_dir}/caterpillar_zrei8_5_fix'
-  temp_dir = f'{data_dir}/log_caterpillar{_300kpc}_surv_probs_v3.1'
+  suite_dir = join(raw_dir, config.caterpillar_raw_name)
+  catalog = 'caterpillar'
   suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
 
-if not os.path.isdir(temp_dir):
-  os.makedirs(temp_dir)
+if config.generate_with_surv_probs:
+  temp_dir = join(gendata_dir, config.gendata_name_template.substitute(catalog=catalog, _300kpc=_300kpc, _surv_probs='_surv_probs'))
 
-filename = f'{temp_dir}/{suite_name}.csv'
+  if not isdir(temp_dir):
+    makedirs(temp_dir)
 
-generate_distribution_with_surv_probs(suite_name_decorated, filename, suite_dir, iterations=250000, chunk_size=200, select_by_Rvir = False)
+  filename = join(temp_dir, f'{suite_name}.csv')
+
+  generate_distribution(suite_name_decorated, filename, suite_dir, is_surv_probs=True, select_by_Rvir = select_by_Rvir)
+
+if config.generate_without_surv_probs:
+  temp_dir = join(gendata_dir, config.gendata_name_template.substitute(catalog=catalog, _300kpc=_300kpc, _surv_probs=''))
+
+  if not isdir(temp_dir):
+    makedirs(temp_dir)
+
+  filename = join(temp_dir, f'{suite_name}.csv')
+
+  generate_distribution(suite_name_decorated, filename, suite_dir, is_surv_probs=False, select_by_Rvir = select_by_Rvir)

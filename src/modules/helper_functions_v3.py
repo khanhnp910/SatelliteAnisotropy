@@ -5,6 +5,7 @@ import csv
 import pandas as pd
 from string import Template
 import random
+import config
 
 from modules.stats_v3 import get_D_sph, get_D_rms, get_D_sph_flipped, get_R_med, random_choice_noreplace
 
@@ -91,7 +92,7 @@ def normalize(vectors):
 
   return normal_vectors
 
-def read_MW(MW_path='../../Data/pawlowski_tab2.csv'):
+def read_MW(MW_path=config.MW_path):
   """_summary_
 
   Parameters
@@ -121,7 +122,7 @@ def read_MW(MW_path='../../Data/pawlowski_tab2.csv'):
 
   return dic
 
-def get_MW(MW_path='../../Data/pawlowski_tab2.csv', is_D_rms=True, is_R_med=True, num_D_sph=11, num_D_sph_flipped=11):
+def get_MW(MW_path=config.MW_path, is_D_rms=True, is_R_med=True, num_D_sph=11, num_D_sph_flipped=11):
   """get relevant quantities for MW
 
   if num_D_sph is int, dic['D_sph'] is D_sph for num_D_sph
@@ -234,7 +235,7 @@ def read_halo(suite_name_decorated, suite_dir, varnames=None):
 
   return data.rename(columns={'xpos': 'X', 'ypos': 'Y', 'zpos': 'Z', 'vx': 'Vx', 'vy': 'Vy', 'vz': 'Vz', 'rvir': 'Rvir'})
 
-def extract_inside(data, mass_cutoff = 5e8, select_by_Rvir=True, is_comp_parent = False):
+def extract_inside(data, mass_cutoff = config.MASS_CUTOFF, select_by_Rvir=True, is_comp_parent = False):
   """extract subhalos inside Rvir or 300kpc 
 
   Parameters
@@ -358,7 +359,7 @@ def read_specific(data, type='brightest', is_surv_probs=True, num_chosen=11, sel
 
   return new_dic_extracted
 
-def generate_distribution_with_surv_probs(suite_name_decorated, filename, suite_dir, iterations=250000, chunk_size=200, select_by_Rvir = False):
+def generate_distribution(suite_name_decorated, filename, suite_dir, is_surv_probs=True, iterations=config.ITERATIONS, chunk_size=config.CHUNK_SIZE, select_by_Rvir = False):
   """generate distribution with surv_probs
 
   Parameters
@@ -369,6 +370,8 @@ def generate_distribution_with_surv_probs(suite_name_decorated, filename, suite_
       filename of the generated data
   suite_dir : str
       directory to the raw data
+  is_surv_probs: bool, optional
+      True if the sample of size num_chosen uses surv_probs, by default True
   iterations : int, optional
       number of iterations, by default 250000
   chunk_size : int, optional
@@ -395,9 +398,12 @@ def generate_distribution_with_surv_probs(suite_name_decorated, filename, suite_
     # (size,)
     random_probs = np.random.rand(size)
 
-    temp = random_probs < surv_probs
+    if is_surv_probs:
+      temp = random_probs < surv_probs
 
-    new_indices = np.arange(size)[temp]
+      new_indices = np.arange(size)[temp]
+    else:
+      new_indices = np.arange(size)
 
     if len(new_indices) < 11:
       continue
@@ -428,7 +434,7 @@ def generate_distribution_with_surv_probs(suite_name_decorated, filename, suite_
       writer = csv.writer(file, delimiter=',')
       writer.writerows(arr)
 
-def generate_brightest_distribution_with_surv_probs(suite_name_decorated, filename, suite_dir, iterations=50000, select_by_Rvir = False):
+def generate_brightest_distribution_with_surv_probs(suite_name_decorated, filename, suite_dir, iterations=config.ITERATIONS_BRIGHTEST, select_by_Rvir = False):
   """generate brightest distribution with surv_probs
 
   Parameters

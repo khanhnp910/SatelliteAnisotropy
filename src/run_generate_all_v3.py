@@ -1,20 +1,22 @@
 import os
+from os.path import join, dirname
+import config
 
 state = True
 
 if state:
-  filename = 'generate_distribution_v3'
+  filenames = []
+  
+  if config.generate_with_surv_probs or config.generate_without_surv_probs:
+    filenames.append('generate_distribution_v3.py')
 
-  caterpillar_dir = '../../caterpillar_zrei8_5_fix'
-  caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
+  if config.generate_brightest:
+    filenames.append('generate_brightest_distribution_v3.py')
 
-  elvis_dir = '../../elvis_isolated'
-  elvis_names = [name for name in os.listdir(elvis_dir) if os.path.isdir(elvis_dir+'/'+name)]
+  for filename in filenames:
+    filename_expanded = join(dirname(__file__), filename)
 
-  suite_names = elvis_names + caterpillar_names
-
-  for suite_name in suite_names:
-    print(f'Running for {suite_name}')
-    os.system(f'python {filename}.py {suite_name} 1')
-    # os.makedirs(f'../../result_v3/caterpillar/{suite_name}')
+    for suite_name in config.get_suite_names():
+      print(f'Running for {suite_name}')
+      os.system(f'python {filename_expanded} {suite_name} 1')
 
