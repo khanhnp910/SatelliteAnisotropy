@@ -1,3 +1,4 @@
+
 from sys import argv
 from os.path import join, isdir 
 from os import makedirs
@@ -6,9 +7,6 @@ import config
 from modules.helper_functions_v3 import generate_brightest_distribution_with_surv_probs, caterpillar_name_template, elvis_name_template
 
 import __main__
-
-raw_dir = config.raw_dir
-gendata_dir = config.gendata_dir
 
 if len(argv) > 1:
   suite_name = argv[1]
