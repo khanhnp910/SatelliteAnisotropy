@@ -5,8 +5,8 @@ from modules.helper_functions_v3 import generate_distribution_with_surv_probs, e
 
 import __main__
 
-prev_suite_dir = '../..'
-data_dir = '../../Data'
+prev_suite_dir = '../data/'
+data_dir = '../data/gendata/'
 
 if len(argv) > 1:
   suite_name = argv[1]
