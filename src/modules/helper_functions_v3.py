@@ -98,7 +98,7 @@ def read_MW(MW_path=config.MW_path):
   Parameters
   ----------
   MW_path : str, optional
-      path to MW data, by default '../../Data/pawlowski_tab2.csv'
+      path to MW data
 
   Returns
   -------
