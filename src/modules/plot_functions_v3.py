@@ -367,7 +367,7 @@ def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False, see
     plt.savefig(f"{save_dir}/plot_poles_brightest_with_config_for_{suite_name}.pdf")
 
 def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="", select_by_Rvir=False, seed=None, 
-                    num_chosen=11, ax=None, saveimage=False):
+                    num_chosen=11, ax=None, shade_color='slateblue', figsize=(5,5), saveimage=False):
   """plot D_sph as a function of k with/without surv_probs
 
   Parameters
@@ -392,7 +392,7 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="",
       save image if True, by default False
   """
   if ax is None:
-    ax = plt.figure(figsize=(8, 6)).add_subplot()
+    ax = plt.figure(figsize=figsize).add_subplot()
   
   dic = read_specific(data, select_by_Rvir=select_by_Rvir, seed=seed)
   poles = dic['poles']
@@ -435,9 +435,9 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="",
       arr_uppers[2].append(np.percentile(D_sph, 99.87))
     
     ax.plot(np.arange(3,num_chosen+1), arr, label='with surv_probs', color='g')
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[2], arr_uppers[2], alpha=0.2, color='g')
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[1], arr_uppers[1], alpha=0.25, color='g')
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[0], arr_uppers[0], alpha=0.3, color='g')
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[2], arr_uppers[2], alpha=0.2, color=shade_color)
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[1], arr_uppers[1], alpha=0.25, color=shade_color)
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[0], arr_uppers[0], alpha=0.3, color=shade_color)
 
   ax.plot(np.arange(3,num_chosen+1), arr_without_surv_probs, label='without surv_probs', color='b')
   ax.plot(np.arange(3,num_chosen+1), arr_MW, label='MW', color='orangered')
@@ -449,6 +449,7 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="",
 
   if saveimage:
     plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf")
+    
 
 def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
                     is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
@@ -765,14 +766,14 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     if saveimage:
       fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, saveimage=False):
+    
+def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', 
+                 is_surv_probs=True, save_dir=None, saveimage=False, figsize=(5,5)):
+    
   if save_dir is None:
     saveimage=False
 
-  caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
-  elvis_names = [name for name in os.listdir(elvis_isolated_dir) if os.path.isdir(elvis_isolated_dir+'/'+name)]
-
-  suite_names = elvis_names + caterpillar_names
+  suite_names = config.get_suite_names()
   select_by_Rvir = False
 
   X_elvis_isolated = []
@@ -786,7 +787,7 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
     X_err_caterpillar = [[],[]]
     Y_err_caterpillar = [[],[]]
 
-  fig, ax = plt.subplots(figsize=(8,6))
+  fig, ax = plt.subplots(figsize=figsize)
 
   for suite_name in suite_names:
     print(f"Running for {suite_name}")
@@ -808,10 +809,9 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
       if is_surv_probs:
         X_err = X_err_caterpillar
         Y_err = Y_err_caterpillar
-
+       
     if is_surv_probs:
       data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
-
       if X_type == 'scaled_D_rms':
         X_halo = data_brightest_sampled['D_rms']/data_brightest_sampled['R_med']
       else:
@@ -853,6 +853,12 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
 
           types[type_].append(to_degree(np.min(np.around(get_D_sph(chosen_poles)['D_sph'], decimals=3), axis=-1)))
 
+#   if is_surv_probs:
+#     ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
+#     ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
+#   else:
+#     ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
+#     ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
   if is_surv_probs:
     ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
     ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')

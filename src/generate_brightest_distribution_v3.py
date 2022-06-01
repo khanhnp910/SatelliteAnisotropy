@@ -8,6 +8,10 @@ from modules.helper_functions_v3 import generate_brightest_distribution_with_sur
 
 import __main__
 
+raw_dir = config.raw_dir
+gendata_dir = config.gendata_dir
+
+
 if len(argv) > 1:
   suite_name = argv[1]
   select_by_Rvir = True if argv[2] == '0' else False
