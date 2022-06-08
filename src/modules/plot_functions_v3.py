@@ -765,14 +765,98 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     if saveimage:
       fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
 
+def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
+  """histogram of D_rms vs D_sph
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_surv_probs : bool, optional
+      True if the sample of size k uses surv_probs, by default False
+  is_heaviest : bool, optional
+      include  heaviest if True, by default False
+  k : int, optional
+      number of subhalos, by default 11
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
+  fig, ax = plt.subplots(figsize=(8,6))
+
+  dic = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms','R_med'])
+
+  D_rms = dic['D_rms']
+  R_med = dic['R_med']
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=None, num_D_sph_flipped=None)
+  
+  data_brightest_without_surv_probs = read_specific(data, type='brightest', is_surv_probs=False, seed=seed, select_by_Rvir=select_by_Rvir)
+
+  D_rms_MW = data_MW['D_rms']
+  R_med_MW = data_MW['R_med']
+
+  xmin = min(np.min(D_rms), D_rms_MW)
+  xmax = max(np.max(D_rms), D_rms_MW)
+  ymin = min(np.min(R_med), R_med_MW)
+  ymax = max(np.max(R_med), R_med_MW)
+
+  plot_2d_dist(D_rms, R_med, [xmin, xmax], [ymin, ymax], 50, 50, figsize=(5,5),fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
+  ax.scatter(D_rms_MW, R_med_MW, label='MW', marker='x', c='orangered', s=100)
+  ax.scatter(get_D_rms(data_brightest_without_surv_probs['pos'])['D_rms'], 
+      get_R_med(data_brightest_without_surv_probs['pos'])['R_med'], label='brightest without surv_probs', marker='x', c='c', s=100)
+
+  if brightest_dir is None:
+    data_brightest = read_specific(data, type='brightest', select_by_Rvir=select_by_Rvir, seed=seed)
+
+    ax.scatter(get_D_rms(data_brightest['pos'])['D_rms'], 
+      get_R_med(data_brightest['pos'])['R_med'], label='brightest', marker='x', c='y', s=100)
+    
+  else:
+    data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv', usecols=['D_rms', 'R_med'])
+
+    D_rms = data_brightest_sampled['D_rms']
+    R_med = data_brightest_sampled['R_med']
+
+    D_rms_med = np.median(D_rms)
+    R_med_med = np.median(R_med)
+
+    D_rms_errorbar = [[np.abs(np.percentile(D_rms, 2.5)-D_rms_med)], [np.abs(np.percentile(D_rms, 97.5)-D_rms_med)]]
+    D_med_errorbar = [[np.abs(np.percentile(R_med, 2.5)-R_med_med)], [np.abs(np.percentile(R_med, 97.5)-R_med_med)]]
+
+    ax.errorbar(D_rms_med, R_med_med, xerr=D_rms_errorbar, yerr=D_med_errorbar, fmt='.', color='y', label='brightest with surv_probs')
+
+  ax.set_xlabel("$\\Delta_{\\textrm{rms}} (\\textrm{kpc})$")
+  ax.set_ylabel("$R_{\\rm med} $"+("(kpc)"))
+
+  ax.legend()
+  if is_surv_probs:
+    ax.set_title(f"histogram of D_rms and R_med with surv_probs of {suite_name}")
+    if saveimage:
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_surv_probs_for_{suite_name}.pdf")
+  else:
+    ax.set_title(f"histogram of D_rms and R_med of {suite_name}")
+    if saveimage:
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_for_{suite_name}.pdf")
+
 def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, saveimage=False):
   if save_dir is None:
     saveimage=False
 
-  caterpillar_names = [name for name in os.listdir(caterpillar_dir) if os.path.isdir(caterpillar_dir+'/'+name)]
-  elvis_names = [name for name in os.listdir(elvis_isolated_dir) if os.path.isdir(elvis_isolated_dir+'/'+name)]
-
-  suite_names = elvis_names + caterpillar_names
+  suite_names = config.get_suite_names()
   select_by_Rvir = False
 
   X_elvis_isolated = []
