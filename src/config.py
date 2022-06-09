@@ -3,22 +3,24 @@ from os import makedirs, listdir
 from string import Template
 
 # Directory to the folder containing elvis_isolated and caterpillar raw data
-raw_dir = dirname(dirname(dirname(__file__)))
-
+#raw_dir = dirname(dirname(dirname(__file__)))
+raw_dir = 'C:/Users/akrav/Documents/prj/2205_sat_anisotropy/data/'
+#print(raw_dir)
 # Directory to the folder containing generated data
-gendata_dir = join(dirname(dirname(dirname(__file__))), 'Data')
+#gendata_dir = join(dirname(dirname(dirname(__file__))), '2205_sat_anisotropy/gendata')
+gendata_dir = 'C:/Users/akrav/Documents/prj/2205_sat_anisotropy/gendata/'
 
 if not isdir(gendata_dir):
   makedirs(gendata_dir)
 
 # Directory to results
-result_dir = join(dirname(dirname(dirname(__file__))), 'result_v3')
+result_dir = join(dirname(dirname(dirname(__file__))), '2205_sat_anisotropy/gendata')
 
 if not isdir(result_dir):
   makedirs(result_dir)
 
 # Path to the MW data
-MW_path = join(dirname(dirname(dirname(__file__))), 'Data', 'pawlowski_tab2.csv')
+MW_path = join(dirname(dirname(dirname(__file__))), '2205_sat_anisotropy/data', 'pawlowski_tab2.csv')
 
 # Name of the folder containing elvis_isolated raw data
 elvis_isolated_raw_name = 'elvis_isolated'
