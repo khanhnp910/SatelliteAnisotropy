@@ -359,6 +359,44 @@ def read_specific(data, type='brightest', is_surv_probs=True, num_chosen=11, sel
 
   return new_dic_extracted
 
+def get_specific(data, is_surv_probs=True, num_chosen=11, select_by_Rvir=True, seed=None, is_comp_parent = False, is_D_rms=True, is_R_med=True, num_D_sph=None, num_D_sph_flipped=None):
+  dic_brightest = read_specific(data, 'brightest', is_surv_probs, num_chosen, select_by_Rvir, seed, is_comp_parent)
+  dic = {}
+  pos = dic_brightest['pos']
+  poles = dic_brightest['poles']
+
+  num_MW = len(pos)
+
+  if is_D_rms:
+    dic['D_rms'] = get_D_rms(pos)['D_rms']
+
+  if is_R_med:
+    dic['R_med'] = np.median(np.sum(pos**2, axis=-1)**(1/2))
+
+  if num_D_sph is not None:
+    if type(num_D_sph) is int:
+      chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num_D_sph)))]
+      dic['D_sph'] = np.min(get_D_sph(chosen_poles)['D_sph'])
+    if type(num_D_sph) is list:
+      dic['D_sph'] = {}
+      for num in num_D_sph:
+        chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num)))]
+        dic['D_sph'][num] = np.min(get_D_sph(chosen_poles)['D_sph'])
+        dic[f'D_sph_{num}'] = dic['D_sph'][num]
+
+  if num_D_sph_flipped is not None:
+    if type(num_D_sph_flipped) is int:
+      chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num_D_sph_flipped)))]
+      dic['D_sph_flipped'] = np.min(get_D_sph_flipped(chosen_poles)['D_sph_flipped'])
+    if type(num_D_sph_flipped) is list:
+      dic['D_sph_flipped'] = {}
+      for num in num_D_sph_flipped:
+        chosen_poles = poles[np.array(list(combinations(np.arange(num_MW),num)))]
+        dic['D_sph_flipped'][num] = np.min(get_D_sph_flipped(chosen_poles)['D_sph_flipped'])
+        dic[f'D_sph_flipped_{num}'] = dic['D_sph_flipped'][num]
+
+  return dic
+
 def generate_distribution(suite_name_decorated, filename, suite_dir, is_surv_probs=True, iterations=config.ITERATIONS, chunk_size=config.CHUNK_SIZE, select_by_Rvir = False):
   """generate distribution with surv_probs
 
@@ -476,3 +514,35 @@ def generate_brightest_distribution_with_surv_probs(suite_name_decorated, filena
     with open(filename, "a", newline='') as file:
       writer = csv.writer(file, delimiter=',')
       writer.writerow([np.around(D_rms,3), np.around(R_med,3)]+D_sphs)
+
+def to_label(type_, is_unit=False):
+  if is_unit:
+    if type_ == 'scaled_D_rms':
+      label = r'$D_{\rm rms}/R_{\rm med}$'
+    elif type_[:6] == 'D_sph_':
+      label = r'$D_{\rm sph}$'+f'({type_[6:]})'+r' $(^\circ)$'
+    elif type_ == 'D_rms':
+      label = r'$D_{\rm rms}$'+' (kpc)'
+    else:
+      label = r'$D_{\rm med}$'+' (kpc)'
+  else:
+    if type_ == 'scaled_D_rms':
+      label = r'$D_{\rm rms}/R_{\rm med}$'
+    elif type_[:6] == 'D_sph_':
+      label = r'$D_{\rm sph}$'+f'({type_[6:]})'
+    elif type_ == 'D_rms':
+      label = r'$D_{\rm rms}$'
+    else:
+      label = r'$D_{\rm med}$'
+  
+  return label
+
+def attr_from_dic(dic, type_):
+  if type_ == 'scaled_D_rms':
+    attr = dic['D_rms']/dic['R_med']
+  elif type_[:6] == 'D_sph_':
+    attr = to_degree(dic[type_])
+  else:
+    attr = dic[type_]
+
+  return attr

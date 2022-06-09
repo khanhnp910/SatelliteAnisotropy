@@ -1,5 +1,5 @@
 from itertools import combinations
-import os
+from os.path import join
 from matplotlib.colors import LogNorm
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ from modules.helper_functions_v3 import get_MW, read_specific, to_spherical, cat
 from modules.stats_v3 import get_D_sph, get_R_med, get_D_rms
 
 from .stats_v3 import conf_interval
-from .helper_functions_v3 import normalize, read_halo, to_degree
+from .helper_functions_v3 import attr_from_dic, get_specific, normalize, read_halo, to_degree, to_label
 import config
 
 def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5), 
@@ -450,7 +450,6 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="",
   if saveimage:
     plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf")
     
-
 def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
                     is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
   """plot distribution of D_rms dispersion
@@ -766,36 +765,7 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_
     if saveimage:
       fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
-  """histogram of D_rms vs D_sph
-
-  Parameters
-  ----------
-  suite_name : str
-      name of the suite
-  data_dir : str
-      directory of the generated data
-  data : dataframe 
-      dataframe containing relevant attributes
-  brightest_dir : str, optional
-      directory of the generated data for brightest subhalos with surv_probs, by default None
-  is_surv_probs : bool, optional
-      True if the sample of size k uses surv_probs, by default False
-  is_heaviest : bool, optional
-      include  heaviest if True, by default False
-  k : int, optional
-      number of subhalos, by default 11
-  select_by_Rvir : bool, optional
-      True if choosing subhalos inside Rvir, by default True
-  seed : _type_, optional
-      set random seed, by default None
-  save_dir : str, optional
-      save directory of the plot, by default ""
-  ax : Axes, optional
-      Axes of the plot, by default None
-  saveimage : bool, optional
-      save image if True, by default False
-  """
+def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, select_by_Rvir=False, seed=None, save_dir="", saveimage=False):
   fig, ax = plt.subplots(figsize=(8,6))
 
   dic = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms','R_med'])
@@ -836,9 +806,9 @@ def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, is_
     R_med_med = np.median(R_med)
 
     D_rms_errorbar = [[np.abs(np.percentile(D_rms, 2.5)-D_rms_med)], [np.abs(np.percentile(D_rms, 97.5)-D_rms_med)]]
-    D_med_errorbar = [[np.abs(np.percentile(R_med, 2.5)-R_med_med)], [np.abs(np.percentile(R_med, 97.5)-R_med_med)]]
+    R_med_errorbar = [[np.abs(np.percentile(R_med, 2.5)-R_med_med)], [np.abs(np.percentile(R_med, 97.5)-R_med_med)]]
 
-    ax.errorbar(D_rms_med, R_med_med, xerr=D_rms_errorbar, yerr=D_med_errorbar, fmt='.', color='y', label='brightest with surv_probs')
+    ax.errorbar(D_rms_med, R_med_med, xerr=D_rms_errorbar, yerr=R_med_errorbar, fmt='.', color='y', label='brightest with surv_probs')
 
   ax.set_xlabel("$\\Delta_{\\textrm{rms}} (\\textrm{kpc})$")
   ax.set_ylabel("$R_{\\rm med} $"+("(kpc)"))
@@ -857,7 +827,13 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
   if save_dir is None:
     saveimage=False
 
-  suite_names = config.get_suite_names()
+  if elvis_isolated_dir is not None and caterpillar_dir is None:
+    suite_names = config.get_elvis_isolated_names()
+  elif elvis_isolated_dir is None and caterpillar_dir is not None:
+    suite_names = config.get_caterpillar_names()
+  else:
+    suite_names = config.get_suite_names()
+  
   select_by_Rvir = False
 
   X_elvis_isolated = []
@@ -937,18 +913,16 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
 
           types[type_].append(to_degree(np.min(np.around(get_D_sph(chosen_poles)['D_sph'], decimals=3), axis=-1)))
 
-#   if is_surv_probs:
-#     ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
-#     ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
-#   else:
-#     ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
-#     ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
   if is_surv_probs:
-    ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
-    ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
+    if len(X_elvis_isolated) > 0:
+      ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
+    if len(X_caterpillar) > 0:
+      ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
   else:
-    ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
-    ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
+    if len(X_elvis_isolated) > 0:
+      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
+    if len(X_caterpillar) > 0:
+      ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
 
   data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
 
@@ -998,3 +972,82 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_
 
   if saveimage:
     plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf')
+
+def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms', is_surv_probs=False, save_dir='', saveimage=False, figsize=(5,5)):
+  fig, ax = plt.subplots(figsize=figsize)
+  
+  caterpillar_names = config.get_caterpillar_names()
+  
+  X = []
+  Y = []
+
+  for suite_name in caterpillar_names:
+    dic = pd.read_csv(f"{data_dir}/{suite_name}.csv")
+    X.append(attr_from_dic(dic, X_type))
+    Y.append(attr_from_dic(dic, Y_type))
+    
+  X = np.array(X).flatten()
+  Y = np.array(Y).flatten()
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+  X_MW = attr_from_dic(data_MW, X_type)
+  Y_MW = attr_from_dic(data_MW, Y_type)
+  
+
+  xmin = min(np.min(X), X_MW)
+  xmax = max(np.max(X), X_MW)
+  ymin = min(np.min(Y), Y_MW)
+  ymax = max(np.max(Y), Y_MW)
+
+  plot_2d_dist(X, Y, [xmin, xmax], [ymin, ymax], 50, 50, figsize=figsize,fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
+  ax.scatter(X_MW, Y_MW, label='MW', marker='x', c='orangered', s=100)
+  
+
+  X_brightest = []
+  Y_brightest = []
+
+  if is_surv_probs:
+    for suite_name in caterpillar_names:
+      data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
+
+      X_brightest.append(attr_from_dic(data_brightest_sampled, X_type))
+      Y_brightest.append(attr_from_dic(data_brightest_sampled, Y_type))
+
+  else:
+    for suite_name in caterpillar_names:
+      suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
+      suite_dir = join(config.raw_dir, config.caterpillar_raw_name)
+      data = read_halo(suite_name_decorated, suite_dir)
+
+      data_brightest = get_specific(data, is_surv_probs=False, num_chosen=11, select_by_Rvir=False, is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+      X_brightest.append(attr_from_dic(data_brightest, X_type))
+      Y_brightest.append(attr_from_dic(data_brightest, Y_type))
+  
+  X_brightest = np.array(X_brightest).flatten()
+  Y_brightest = np.array(Y_brightest).flatten()
+
+  X_med = np.median(X_brightest)
+  Y_med = np.median(Y_brightest)
+
+  X_errorbar_2 = [[np.abs(np.percentile(X_brightest, 2.5)-X_med)], [np.abs(np.percentile(X_brightest, 97.5)-X_med)]]
+  Y_errorbar_2 = [[np.abs(np.percentile(Y_brightest, 2.5)-Y_med)], [np.abs(np.percentile(Y_brightest, 97.5)-Y_med)]]
+
+  X_errorbar_3 = [[np.abs(np.percentile(X_brightest, 0.15)-X_med)], [np.abs(np.percentile(X_brightest, 99.85)-X_med)]]
+  Y_errorbar_3 = [[np.abs(np.percentile(Y_brightest, 0.15)-Y_med)], [np.abs(np.percentile(Y_brightest, 99.85)-Y_med)]]
+
+  out = '' if is_surv_probs else 'out'
+
+  ax.errorbar(X_med, Y_med, xerr=X_errorbar_2, yerr=Y_errorbar_2, fmt='.', color='y', elinewidth=4, label=f'brightest with{out} surv_probs 2 sigma')
+  ax.errorbar(X_med, Y_med, xerr=X_errorbar_3, yerr=Y_errorbar_3, fmt='.', color='y', elinewidth=2, label=f'brightest with{out} surv_probs 3 sigma')
+
+  ax.set_xlabel(to_label(X_type, True))
+  ax.set_ylabel(to_label(Y_type, True))
+
+  ax.set_title(f'histogram of {to_label(X_type)} vs {to_label(Y_type)} for all caterpillar hosts with{out} surv_probs')
+
+  ax.legend()
+
+  if saveimage:
+    plt.savefig(f'{save_dir}/general_histogram_{X_type}_vs_{Y_type}_with{out}_surv_probs_all_caterpillar_hosts.pdf')
