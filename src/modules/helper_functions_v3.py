@@ -12,13 +12,21 @@ from modules.stats_v3 import get_D_sph, get_D_rms, get_D_sph_flipped, get_R_med,
 elvis_name_template = Template('${suite_name}_isolated_elvis_iso_zrei8_etan_18_etap_045_run.csv')
 caterpillar_name_template = Template('${suite_name}_LX14_zrei8_5_fix_run.csv')
 
-def plot_pretty(dpi=175,fontsize=9):
-    # import pyplot and set some parameters to make plots prettier
+def plot_pretty(dpi=200, fontsize=10, usetex=True):
+  '''
+    Make plots look nicer compared to Matplotlib defaults
+    Parameters: 
+        dpi - int, "dots per inch" - controls resolution of PNG images that are produced
+                by Matplotlib
+        fontsize - int, font size to use overall
+        usetex - bool, whether to use LaTeX to render fonds of axes labels 
+                use False if you don't have LaTeX installed on your system
+  '''
   import matplotlib.pyplot as plt
 
   plt.rc("savefig", dpi=dpi)
   plt.rc("figure", dpi=dpi)
-  plt.rc('text', usetex=True)
+  plt.rc('text', usetex=usetex)
   plt.rc('font', size=fontsize)
   plt.rc('xtick', direction='in') 
   plt.rc('ytick', direction='in')

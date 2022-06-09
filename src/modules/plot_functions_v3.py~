@@ -68,13 +68,12 @@ def plot_2d_dist(x,y, xlim, ylim, nxbins, nybins, figsize=(5,5),
   if xpmax is not None:
     ax.scatter(xpmax, ypmax, marker='x', c='orangered', s=20)
   if savefig:
-    plt.savefig(savefig, bbox_inches='tight')
+    plt.savefig(savefig,bbox_inches='tight')
   if fig_setup is None:
     plt.show()
   return ax
 
-def plot_vectors(vectors, img_name=None, save_dir=None, title=None, size=None,
-		 ax=None, saveimage=False):
+def plot_vectors(vectors, img_name=None, save_dir=None, title=None, size=None, ax=None, saveimage=False):
   """plot vectors in aitoff projection
 
   Parameters
@@ -129,12 +128,8 @@ def plot3D(vectors, ax = None):
   ax.set_box_aspect(aspect = (1,1,1))
   ax.scatter(vectors[:,0],vectors[:,1],vectors[:,2])
 
-def plot_distribution_D_rms_dispersion(suite_name, data_dir,
-				       data_surv_probs_dir, data,
-				       brightest_dir=None, is_heaviest=False,
-				       select_by_Rvir=False, seed=None, title=None, 
-                       legend = True, 
-				       save_dir="", ax=None, saveimage=False):
+def plot_distribution_D_rms_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
+                    is_heaviest=False, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
   """plot distribution of D_rms dispersion
 
   Parameters
@@ -201,16 +196,14 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir,
     ax.arrow(get_D_rms(pos_heaviest)['D_rms']/get_R_med(pos_heaviest)['R_med'],0,0,0.5, label="heaviest",color='g',head_width=0.01,head_length=0.2)
     ax.arrow(get_D_rms(pos_heaviest_without_surv_probs)['D_rms']/get_R_med(pos_heaviest_without_surv_probs)['R_med'],0,0,0.5, label="heaviest without surv_probs",color='k',head_width=0.01,head_length=0.2)
 
-  if title is not None: 
-      ax.set_title(title)
+  ax.set_title('The distribution of the D_rms dispersions')
   ax.set_xlabel('$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$')
   ax.set_ylabel('P($\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$)')
 
-  if legend: ax.legend()
+  ax.legend()
 
   if saveimage:
-    plt.savefig(f"{save_dir}/distribution_D_rms_over_R_med_dispersion_for_{suite_name}.pdf", bbox_inches='tight')
-
+    plt.savefig(f"{save_dir}/distribution_D_rms_over_R_med_dispersion_for_{suite_name}.pdf")
 
 def plot_circle_around_vector(average_pole, d_angle, ax=None, label=""):
   """plot circle around a vector
@@ -254,9 +247,8 @@ def plot_circle_around_vector(average_pole, d_angle, ax=None, label=""):
   ax.grid(True)
   plt.rcParams['axes.titley'] = 1.1
 
-def plot_poles_brightest(suite_name, data, select_by_Rvir=False, seed=None, 
-                         save_dir="", num_chosen=11, ax=None, saveimage=False,
-                         legend=True, title=None):
+def plot_poles_brightest(suite_name, data, select_by_Rvir=False, seed=None, save_dir="", 
+                    num_chosen=11, ax=None, saveimage=False):
   """plot brightest poles with D_sph for num_chosen
 
   Note: without surv_probs
@@ -304,18 +296,14 @@ def plot_poles_brightest(suite_name, data, select_by_Rvir=False, seed=None,
     count += 1
 
   plt.rcParams['axes.titley'] = 1.1
-  if title is not None: 
-      ax.set_title(title)
-  if legend: 
-      ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
+  ax.set_title(f"Distribution of brightest poles and uncertainties for {suite_name}")
+  ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
 
   if saveimage:
-    plt.savefig(f"{save_dir}/plot_poles_brightest_for_{suite_name}.pdf", bbox_inches='tight')
+    plt.savefig(f"{save_dir}/plot_poles_brightest_for_{suite_name}.pdf")
 
-def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False, 
-                                     seed=None, save_dir="", num_chosen=11, 
-                                     title=None, legend=True, ax=None, 
-                                     saveimage=False):
+def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False, seed=None, save_dir="", 
+                    num_chosen=11, ax=None, saveimage=False):
   """plot brightest poles with D_sph for num_chosen with the best config
 
   Note: without surv_probs
@@ -371,20 +359,15 @@ def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False,
   ax.scatter(pos_phis, pos_thetas, marker = '.')
   ax.grid(True)
   plt.rcParams['axes.titley'] = 1.1
-  if title is not None: 
-      ax.set_title(title)
+  ax.set_title(f"Distribution of brightest poles config for {suite_name}")
   ax.set_xlabel("$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$: "+"{:.2f}".format(get_D_rms(pos)['D_rms']/get_R_med(pos)['R_med'])+"-$\\Delta_{\\textrm{sph}}: $"+"{:.2f}$^\circ$".format(to_degree(d_angle)))
-  if legend: ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
+  ax.legend(loc='upper right', bbox_to_anchor=(0.6, 0., 0.5, 0.3))
 
   if saveimage:
-    plt.savefig(f"{save_dir}/plot_poles_brightest_with_config_for_{suite_name}.pdf",
-                bbox_inches='tight')
+    plt.savefig(f"{save_dir}/plot_poles_brightest_with_config_for_{suite_name}.pdf")
 
-def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, 
-                              save_dir="", select_by_Rvir=False, seed=None, 
-                              num_chosen=11, ax=None, shade_color='slateblue', 
-                              legend=True, title = None, 
-                              figsize=(5,5), saveimage=False):
+def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, save_dir="", select_by_Rvir=False, seed=None, 
+                    num_chosen=11, ax=None, shade_color='slateblue', figsize=(5,5), saveimage=False):
   """plot D_sph as a function of k with/without surv_probs
 
   Parameters
@@ -458,24 +441,17 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None,
 
   ax.plot(np.arange(3,num_chosen+1), arr_without_surv_probs, label='without surv_probs', color='b')
   ax.plot(np.arange(3,num_chosen+1), arr_MW, label='MW', color='orangered')
-  if title is not None: 
-      ax.set_title(title)
-      
+  ax.set_title(f"D_sph(k) vs k brightest for {suite_name}")
   ax.set_xlabel("k")
   ax.set_ylabel("$\\Delta_{\\textrm{sph}}$ "+"($^\\circ$)")
 
-  if legend: ax.legend()
+  ax.legend()
 
   if saveimage:
-    plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf",
-                bbox_inches='tight')
+    plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf")
     
-def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, 
-                                       data, brightest_dir=None, 
-                                       is_heaviest=False, k=11, 
-                                       select_by_Rvir=False, seed=None, 
-                                       legend=True, title = None, 
-                                       save_dir="", ax=None, saveimage=False):
+def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, data, brightest_dir=None, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
   """plot distribution of D_rms dispersion
 
   Parameters
@@ -556,20 +532,14 @@ def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir
   ax.set_xlabel('$\\Delta_{\\textrm{sph}}$ '+"$(^{\\circ})$")
   ax.set_ylabel('P($\\Delta_{\\textrm{sph}}$)')
 
-  if legend: ax.legend()
+  ax.legend()
 
-  if title is not None: 
-      ax.set_title(title)
+  ax.set_title(f'The distribution of the D_sph({k}) dispersions')
   if saveimage:
-    plt.savefig(f"{save_dir}/distribution_D_sph_dispersion_for_{suite_name}.pdf",
-                bbox_inches='tight')
+    plt.savefig(f"{save_dir}/distribution_D_sph_dispersion_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, 
-                                        brightest_dir=None, is_surv_probs=False,
-                                        is_heaviest=False, k=11, 
-                                        select_by_Rvir=False, seed=None, 
-                                        legend=True, title=None, 
-                                        save_dir="", ax=None, saveimage=False):
+def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
   """histogram of D_rms/R_med vs D_sph
 
   Parameters
@@ -676,23 +646,16 @@ def plot_hist_D_rms_over_R_med_vs_D_sph(suite_name, data_dir, data,
 
   ax.legend()
   if is_surv_probs:
-    if title is not None: 
-        ax.set_title(title)
+    ax.set_title(f"histogram of D_rms/D_med and D_sph({k}) with surv_probs of {suite_name}")
     if saveimage:
-      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf",
-                  bbox_inches='tight')
+      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf")
   else:
-    if title is not None: 
-        ax.set_title(title)
+    ax.set_title(f"histogram of D_rms/D_med and D_sph({k}) of {suite_name}")
     if saveimage:
-      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_for_{suite_name}.pdf",
-                  bbox_inches='tight')
+      plt.savefig(f"{save_dir}/hist_D_rms_over_R_med_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, 
-                             is_surv_probs=False, is_heaviest=False, k=11, 
-                             select_by_Rvir=False, seed=None, save_dir="",
-                             legend=True, title=None, 
-                             ax=None, saveimage=False):
+def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, 
+                    is_heaviest=False, k=11, select_by_Rvir=False, seed=None, save_dir="", ax=None, saveimage=False):
   """histogram of D_rms vs D_sph
 
   Parameters
@@ -794,22 +757,15 @@ def plot_hist_D_rms_vs_D_sph(suite_name, data_dir, data, brightest_dir=None,
 
   ax.legend()
   if is_surv_probs:
-    if title is not None: 
-        ax.set_title(f"histogram of D_rms and D_sph({k}) with surv_probs of {suite_name}")
+    ax.set_title(f"histogram of D_rms and D_sph({k}) with surv_probs of {suite_name}")
     if saveimage:
-        fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf",
-                    bbox_inches='tight')
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_surv_probs_for_{suite_name}.pdf")
   else:
-    if title is not None: 
-        ax.set_title(title)
+    ax.set_title(f"histogram of D_rms and D_sph({k}) of {suite_name}")
     if saveimage:
-        fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf",
-                    bbox_inches='tight')
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_D_sph_{k}_for_{suite_name}.pdf")
 
-def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, 
-                             is_surv_probs=False, select_by_Rvir=False,
-                             title=None, legend=True, 
-                             seed=None, save_dir="", saveimage=False):
+def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None, is_surv_probs=False, select_by_Rvir=False, seed=None, save_dir="", saveimage=False):
   fig, ax = plt.subplots(figsize=(8,6))
 
   dic = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms','R_med'])
@@ -852,39 +808,27 @@ def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None,
     D_rms_errorbar = [[np.abs(np.percentile(D_rms, 2.5)-D_rms_med)], [np.abs(np.percentile(D_rms, 97.5)-D_rms_med)]]
     R_med_errorbar = [[np.abs(np.percentile(R_med, 2.5)-R_med_med)], [np.abs(np.percentile(R_med, 97.5)-R_med_med)]]
 
-    ax.errorbar(D_rms_med, R_med_med, xerr=D_rms_errorbar, yerr=R_med_errorbar, 
-                fmt='.', color='y', label='brightest with surv_probs')
+    ax.errorbar(D_rms_med, R_med_med, xerr=D_rms_errorbar, yerr=R_med_errorbar, fmt='.', color='y', label='brightest with surv_probs')
 
   ax.set_xlabel("$\\Delta_{\\textrm{rms}} (\\textrm{kpc})$")
   ax.set_ylabel("$R_{\\rm med} $"+("(kpc)"))
 
-  if legend: ax.legend()
-  
+  ax.legend()
   if is_surv_probs:
-    if title is not None: 
-      ax.set_title(title)
+    ax.set_title(f"histogram of D_rms and R_med with surv_probs of {suite_name}")
     if saveimage:
-      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_surv_probs_for_{suite_name}.pdf",
-                  bbox_inches='tight')
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_surv_probs_for_{suite_name}.pdf")
   else:
-    if title is not None: 
-        ax.set_title(title)
+    ax.set_title(f"histogram of D_rms and R_med of {suite_name}")
     if saveimage:
-      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_for_{suite_name}.pdf", 
-                  bbox_inches='tight')
+      fig.savefig(f"{save_dir}/hist_D_rms_vs_R_med_for_{suite_name}.pdf")
 
-#----------------------------------------------------------------------------
-def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
-		 X_type='D_sph', Y_type='D_rms', is_surv_probs=True,
-		 save_dir=None, saveimage=False,
-         legend=True, title=None, 
-		 figsize=(5,5)):
-    
+def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template, X_type='D_sph', Y_type='D_rms', is_surv_probs=True, save_dir=None, saveimage=False, figsize=(5,5)):
   if save_dir is None:
-    saveimage = False
+    saveimage=False
 
   if elvis_isolated_dir is not None and caterpillar_dir is None:
-      suite_names = config.get_elvis_isolated_names()
+    suite_names = config.get_elvis_isolated_names()
   elif elvis_isolated_dir is None and caterpillar_dir is not None:
     suite_names = config.get_caterpillar_names()
   else:
@@ -976,11 +920,9 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
       ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
   else:
     if len(X_elvis_isolated) > 0:
-      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='D', s=12, color='m', edgecolor='darkmagenta', 
-                 label='ELVIS')
+      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='.', color='b', label='elvis_isolated')
     if len(X_caterpillar) > 0:
-      ax.scatter(X_caterpillar, Y_caterpillar, marker='o', s=20, color='slateblue', edgecolor='darkslateblue',
-                 label='Caterpillar')
+      ax.scatter(X_caterpillar, Y_caterpillar, marker='x', color='r', label='caterpillar')
 
   data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
 
@@ -998,16 +940,14 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
   else:
     Y_MW = data_MW[Y_type]
 
-  ax.scatter(X_MW, Y_MW, label='MW', marker='*', c='orangered', 
-             edgecolor='darkred', s=100)
+  ax.scatter(X_MW, Y_MW, label='MW', marker='^', c='y', s=100)
 
   if X_type == 'scaled_D_rms':
     X_label = r'$D_{\rm rms}/R_{\rm med}$'
   elif X_type == 'D_rms':
-    X_label = r'$D_{\rm rms}\rm\ (kpc)$'
+    X_label = r'$D_{\rm rms}$ (kpc)'
   elif X_type == 'R_med':
-    ax.set_xlim([50.,260.])
-    X_label = r'$R_{\rm med}\rm\ (kpc)$'
+    X_label = r'$R_{\rm med}$ (kpc)'
   else:
     k = X_label[6:]
     X_label = r'$D_{\rm sph}$ '+f'({k})'
@@ -1015,10 +955,9 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
   if Y_type == 'scaled_D_rms':
     Y_label = r'$D_{\rm rms}/R_{\rm med}$'
   elif Y_type == 'D_rms':
-    Y_label = r'$D_{\rm rms}\rm\ (kpc)$'
-    ax.set_ylim([0., 100.])
+    Y_label = r'$D_{\rm rms}$ (kpc)'
   elif Y_type == 'R_med':
-    Y_label = r'$R_{\rm med}\rm\ (kpc)$'
+    Y_label = r'$R_{\rm med}$ (kpc)'
   else:
     k = Y_label[6:]
     Y_label = r'$D_{\rm sph}$ '+f'({k})'
@@ -1028,17 +967,13 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
 
   out = '' if is_surv_probs else 'out'
 
-  if title is not None:
-      ax.set_title(title)
-  if legend:
-      ax.legend(loc='upper left', frameon=False)
+  ax.set_title(f'general plot {X_type} vs {Y_type} with{out} surv_probs')
+  ax.legend()
 
   if saveimage:
-    plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf', 
-                bbox_inches='tight')
+    plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf')
 
-def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms', 
-                 is_surv_probs=False, save_dir='', saveimage=False, figsize=(5,5)):
+def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms', is_surv_probs=False, save_dir='', saveimage=False, figsize=(5,5)):
   fig, ax = plt.subplots(figsize=figsize)
   
   caterpillar_names = config.get_caterpillar_names()
@@ -1110,11 +1045,9 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
   ax.set_xlabel(to_label(X_type, True))
   ax.set_ylabel(to_label(Y_type, True))
 
-  if plot_title:
-      ax.set_title(f'histogram of {to_label(X_type)} vs {to_label(Y_type)} for all caterpillar hosts with{out} surv_probs')
+  ax.set_title(f'histogram of {to_label(X_type)} vs {to_label(Y_type)} for all caterpillar hosts with{out} surv_probs')
 
-  if legend: ax.legend()
+  ax.legend()
 
   if saveimage:
-    plt.savefig(f'{save_dir}/general_histogram_{X_type}_vs_{Y_type}_with{out}_surv_probs_all_caterpillar_hosts.pdf', 
-                bbox_inches='tight')
+    plt.savefig(f'{save_dir}/general_histogram_{X_type}_vs_{Y_type}_with{out}_surv_probs_all_caterpillar_hosts.pdf')
