@@ -526,22 +526,22 @@ def generate_brightest_distribution_with_surv_probs(suite_name_decorated, filena
 def to_label(type_, is_unit=False):
   if is_unit:
     if type_ == 'scaled_D_rms':
-      label = r'$D_{\rm rms}/R_{\rm med}$'
+      label = r'$\Delta_{\rm rms}/R_{\rm med}$'
     elif type_[:6] == 'D_sph_':
-      label = r'$D_{\rm sph}$'+f'({type_[6:]})'+r' $(^\circ)$'
+      label = r'$\Delta_{\rm sph}$'+f'({type_[6:]})'+r' $(^\circ)$'
     elif type_ == 'D_rms':
-      label = r'$D_{\rm rms}$'+' (kpc)'
+      label = r'$\Delta_{\rm rms}\rm\ (kpc)$'
     else:
-      label = r'$D_{\rm med}$'+' (kpc)'
+      label = r'$\Delta_{\rm med}\rm\ (kpc)$'
   else:
     if type_ == 'scaled_D_rms':
-      label = r'$D_{\rm rms}/R_{\rm med}$'
+      label = r'$\Delta_{\rm rms}/R_{\rm med}$'
     elif type_[:6] == 'D_sph_':
-      label = r'$D_{\rm sph}$'+f'({type_[6:]})'
+      label = r'$\Delta_{\rm sph}$'+f'({type_[6:]})'
     elif type_ == 'D_rms':
-      label = r'$D_{\rm rms}$'
+      label = r'$\Delta_{\rm rms}$'
     else:
-      label = r'$D_{\rm med}$'
+      label = r'$\Delta_{\rm med}$'
   
   return label
 

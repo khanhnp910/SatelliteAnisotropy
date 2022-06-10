@@ -876,7 +876,7 @@ def plot_hist_D_rms_vs_R_med(suite_name, data_dir, data, brightest_dir=None,
 #----------------------------------------------------------------------------
 def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
 		 X_type='D_sph', Y_type='D_rms', is_surv_probs=True,
-		 save_dir=None, saveimage=False,
+		 save_dir=None, saveimage=False, xlims=None, ylims=None, 
          legend=True, title=None, 
 		 figsize=(5,5)):
     
@@ -971,12 +971,20 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
 
   if is_surv_probs:
     if len(X_elvis_isolated) > 0:
-      ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, fmt='.', color='b', label='elvis_isolated')
+      ax.errorbar(X_elvis_isolated, Y_elvis_isolated, xerr=X_err_elvis_isolated, yerr=Y_err_elvis_isolated, 
+                  fmt='.', color='m', alpha=0.3)
     if len(X_caterpillar) > 0:
-      ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, fmt='x', color='r', label='caterpillar')
+      ax.errorbar(X_caterpillar, Y_caterpillar, xerr=X_err_caterpillar, yerr=Y_err_caterpillar, 
+                  fmt='.', color='slateblue', alpha=0.3)
+    if len(X_elvis_isolated) > 0:
+      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='D', s=12, color='violet', edgecolor='darkmagenta', 
+                 label='ELVIS')
+    if len(X_caterpillar) > 0:
+      ax.scatter(X_caterpillar, Y_caterpillar, marker='o', s=20, color='slateblue', edgecolor='darkslateblue',
+                 label='Caterpillar')
   else:
     if len(X_elvis_isolated) > 0:
-      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='D', s=12, color='m', edgecolor='darkmagenta', 
+      ax.scatter(X_elvis_isolated, Y_elvis_isolated, marker='D', s=12, color='violet', edgecolor='darkmagenta', 
                  label='ELVIS')
     if len(X_caterpillar) > 0:
       ax.scatter(X_caterpillar, Y_caterpillar, marker='o', s=20, color='slateblue', edgecolor='darkslateblue',
@@ -1002,26 +1010,32 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
              edgecolor='darkred', s=100)
 
   if X_type == 'scaled_D_rms':
-    X_label = r'$D_{\rm rms}/R_{\rm med}$'
+    X_label = r'$\Delta_{\rm rms}/R_{\rm med}$'
   elif X_type == 'D_rms':
-    X_label = r'$D_{\rm rms}\rm\ (kpc)$'
+    X_label = r'$\Delta_{\rm rms}\rm\ (kpc)$'
   elif X_type == 'R_med':
-    ax.set_xlim([50.,260.])
+    if xlims is None: 
+        ax.set_xlim([50.,300.])
+    else:
+        ax.set_xlim(xlims)
     X_label = r'$R_{\rm med}\rm\ (kpc)$'
   else:
     k = X_label[6:]
-    X_label = r'$D_{\rm sph}$ '+f'({k})'
+    X_label = r'$\Delta_{\rm sph}$ '+f'({k})'
 
   if Y_type == 'scaled_D_rms':
-    Y_label = r'$D_{\rm rms}/R_{\rm med}$'
+    Y_label = r'$\Delta_{\rm rms}/R_{\rm med}$'
   elif Y_type == 'D_rms':
-    Y_label = r'$D_{\rm rms}\rm\ (kpc)$'
-    ax.set_ylim([0., 100.])
+    Y_label = r'$\Delta_{\rm rms}\rm\ (kpc)$'
+    if ylims is None:
+        ax.set_ylim([0., 125.])
+    else:
+        ax.set_ylim(ylims)
   elif Y_type == 'R_med':
     Y_label = r'$R_{\rm med}\rm\ (kpc)$'
   else:
     k = Y_label[6:]
-    Y_label = r'$D_{\rm sph}$ '+f'({k})'
+    Y_label = r'$\Delta_{\rm sph}$ '+f'({k})'
 
   ax.set_xlabel(X_label)
   ax.set_ylabel(Y_label)
@@ -1037,7 +1051,9 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
     plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf', 
                 bbox_inches='tight')
 
+#-------------------------------------------------------------------------------
 def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms', 
+                 plot_title=False, legend=True, xlims=None, ylims=None, 
                  is_surv_probs=False, save_dir='', saveimage=False, figsize=(5,5)):
   fig, ax = plt.subplots(figsize=figsize)
   
@@ -1059,15 +1075,22 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
   X_MW = attr_from_dic(data_MW, X_type)
   Y_MW = attr_from_dic(data_MW, Y_type)
   
-
-  xmin = min(np.min(X), X_MW)
-  xmax = max(np.max(X), X_MW)
-  ymin = min(np.min(Y), Y_MW)
-  ymax = max(np.max(Y), Y_MW)
-
-  plot_2d_dist(X, Y, [xmin, xmax], [ymin, ymax], 50, 50, figsize=figsize,fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
-  ax.scatter(X_MW, Y_MW, label='MW', marker='x', c='orangered', s=100)
+  if xlims is None: 
+      xmin = min(np.min(X), X_MW)
+      xmax = max(np.max(X), X_MW)
+  else:
+      xmin, xmax = xlims
+  if ylims is None:
+      ymin = min(np.min(Y), Y_MW)
+      ymax = max(np.max(Y), Y_MW)
+  else:
+      ymin, ymax = ylims
+      
+  plot_2d_dist(X, Y, [xmin, xmax], [ymin, ymax], 50, 50, figsize=figsize,
+               fig_setup=ax,clevs=[0.6827, 0.9545, 0.9973])
   
+  ax.scatter(X_MW, Y_MW, label='MW', marker='*', c='orangered', 
+             edgecolor='darkred', s=150)
 
   X_brightest = []
   Y_brightest = []
@@ -1085,7 +1108,11 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
       suite_dir = join(config.raw_dir, config.caterpillar_raw_name)
       data = read_halo(suite_name_decorated, suite_dir)
 
-      data_brightest = get_specific(data, is_surv_probs=False, num_chosen=11, select_by_Rvir=False, is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+      data_brightest = get_specific(data, is_surv_probs=False, num_chosen=11, 
+                                    select_by_Rvir=False, is_D_rms=True, 
+                                    is_R_med=True, 
+                                    num_D_sph=list(np.arange(3, 12)), 
+                                    num_D_sph_flipped=None)
 
       X_brightest.append(attr_from_dic(data_brightest, X_type))
       Y_brightest.append(attr_from_dic(data_brightest, Y_type))
@@ -1096,16 +1123,23 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
   X_med = np.median(X_brightest)
   Y_med = np.median(Y_brightest)
 
-  X_errorbar_2 = [[np.abs(np.percentile(X_brightest, 2.5)-X_med)], [np.abs(np.percentile(X_brightest, 97.5)-X_med)]]
-  Y_errorbar_2 = [[np.abs(np.percentile(Y_brightest, 2.5)-Y_med)], [np.abs(np.percentile(Y_brightest, 97.5)-Y_med)]]
+  X_errorbar_2 = [[np.abs(np.percentile(X_brightest, 2.5)-X_med)], 
+                  [np.abs(np.percentile(X_brightest, 97.5)-X_med)]]
+  Y_errorbar_2 = [[np.abs(np.percentile(Y_brightest, 2.5)-Y_med)], 
+                  [np.abs(np.percentile(Y_brightest, 97.5)-Y_med)]]
 
-  X_errorbar_3 = [[np.abs(np.percentile(X_brightest, 0.15)-X_med)], [np.abs(np.percentile(X_brightest, 99.85)-X_med)]]
-  Y_errorbar_3 = [[np.abs(np.percentile(Y_brightest, 0.15)-Y_med)], [np.abs(np.percentile(Y_brightest, 99.85)-Y_med)]]
+  X_errorbar_3 = [[np.abs(np.percentile(X_brightest, 0.15)-X_med)], 
+                  [np.abs(np.percentile(X_brightest, 99.85)-X_med)]]
+  Y_errorbar_3 = [[np.abs(np.percentile(Y_brightest, 0.15)-Y_med)], 
+                  [np.abs(np.percentile(Y_brightest, 99.85)-Y_med)]]
 
   out = '' if is_surv_probs else 'out'
 
-  ax.errorbar(X_med, Y_med, xerr=X_errorbar_2, yerr=Y_errorbar_2, fmt='.', color='y', elinewidth=4, label=f'brightest with{out} surv_probs 2 sigma')
-  ax.errorbar(X_med, Y_med, xerr=X_errorbar_3, yerr=Y_errorbar_3, fmt='.', color='y', elinewidth=2, label=f'brightest with{out} surv_probs 3 sigma')
+  ax.errorbar(X_med, Y_med, xerr=X_errorbar_3, yerr=Y_errorbar_3, fmt='.', 
+              color='lavender', elinewidth=1.)
+  ax.errorbar(X_med, Y_med, xerr=X_errorbar_2, yerr=Y_errorbar_2, fmt='.', 
+              color='lavender', elinewidth=2, markeredgecolor='slateblue',
+              label=f'11 brightest')
 
   ax.set_xlabel(to_label(X_type, True))
   ax.set_ylabel(to_label(Y_type, True))
@@ -1113,7 +1147,8 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
   if plot_title:
       ax.set_title(f'histogram of {to_label(X_type)} vs {to_label(Y_type)} for all caterpillar hosts with{out} surv_probs')
 
-  if legend: ax.legend()
+  if legend: 
+      ax.legend(frameon=False, loc='upper left', ncol=2)
 
   if saveimage:
     plt.savefig(f'{save_dir}/general_histogram_{X_type}_vs_{Y_type}_with{out}_surv_probs_all_caterpillar_hosts.pdf', 
