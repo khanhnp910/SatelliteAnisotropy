@@ -941,11 +941,11 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
       X.append(np.median(X_halo))
       Y.append(np.median(Y_halo))
 
-      X_err[0].append(np.abs(np.percentile(X, 2.5)-np.median(X)))
-      X_err[1].append(np.abs(np.percentile(X, 97.5)-np.median(X)))
+      X_err[0].append(np.abs(np.percentile(X_halo, 2.5)-np.median(X_halo)))
+      X_err[1].append(np.abs(np.percentile(X_halo, 97.5)-np.median(X_halo)))
 
-      Y_err[0].append(np.abs(np.percentile(Y, 2.5)-np.median(Y)))
-      Y_err[1].append(np.abs(np.percentile(Y, 97.5)-np.median(Y)))
+      Y_err[0].append(np.abs(np.percentile(Y_halo, 2.5)-np.median(Y_halo)))
+      Y_err[1].append(np.abs(np.percentile(Y_halo, 97.5)-np.median(Y_halo)))
 
     else:
       data = read_halo(suite_name_decorated, suite_dir)
