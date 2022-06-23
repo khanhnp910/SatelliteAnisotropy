@@ -204,7 +204,7 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir,
   if title is not None: 
       ax.set_title(title)
   ax.set_xlabel('$\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$')
-  ax.set_ylabel('P($\\Delta_{\\textrm{rms}}/R_{\\textrm{med}}$)')
+  ax.set_ylabel('$P(\\Delta_{\\textrm{rms}}/R_{\\textrm{med}})$')
 
   if legend: ax.legend()
 
@@ -212,6 +212,103 @@ def plot_distribution_D_rms_dispersion(suite_name, data_dir,
     plt.savefig(f"{save_dir}/distribution_D_rms_over_R_med_dispersion_for_{suite_name}.pdf", bbox_inches='tight')
 
 
+def plot_distribution_Rmed(suite_name, data_dir,
+				       data_surv_probs_dir, data,
+				       brightest_dir=None, is_heaviest=False,
+				       select_by_Rvir=False, seed=None, title=None, 
+                       legend = True, 
+				       save_dir="", ax=None, saveimage=False):
+  """plot distribution of Rmed values
+
+  Parameters
+  ----------
+  suite_name : str
+      name of the suite
+  data_dir : str
+      directory of the generated data
+  data_surv_probs_dir : str
+      directory of the generated data with surv_probs
+  data : dataframe 
+      dataframe containing relevant attributes
+  brightest_dir : str, optional
+      directory of the generated data for brightest subhalos with surv_probs, by default None
+  is_heaviest : bool, optional
+      plot for heaviest if True, by default False
+  select_by_Rvir : bool, optional
+      True if choosing subhalos inside Rvir, by default True
+  seed : _type_, optional
+      set random seed, by default None
+  save_dir : str, optional
+      save directory of the plot, by default ""
+  ax : Axes, optional
+      Axes of the plot, by default None
+  saveimage : bool, optional
+      save image if True, by default False
+  """
+  df = pd.read_csv(f"{data_dir}/{suite_name}.csv", usecols=['D_rms', 'R_med'])
+  df_surv_probs = pd.read_csv(f"{data_surv_probs_dir}/{suite_name}.csv", usecols=['D_rms', 'R_med'])
+
+  if ax is None:
+    ax = plt.figure(figsize=(8, 6)).add_subplot()
+
+  D_rms = np.array(df['D_rms'])
+  R_med = np.array(df['R_med'])
+  D_rms_surv_probs = np.array(df_surv_probs['D_rms'])
+  R_med_surv_probs = np.array(df_surv_probs['R_med'])
+
+  points = np.linspace(0, 300, num = 1000)
+
+  kernel_halo = gaussian_kde(R_med)
+  kernel_halo_surv_probs = gaussian_kde(R_med_surv_probs)
+  ax.plot(points, kernel_halo(points), label=f"{suite_name} without surv_probs", color='b')
+  ax.plot(points, kernel_halo_surv_probs(points), label=f"{suite_name} with surv_probs", color='m')
+  
+  pos_brightest_without_surv_probs = read_specific(data, type='brightest', is_surv_probs=False, seed=seed, select_by_Rvir=select_by_Rvir)['pos']
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=None, num_D_sph_flipped=None)
+
+
+  ax.arrow(data_MW['R_med'], 0, 0, 0.01, label="MW", color='orangered',
+           head_width=0.1, head_length=0.003)
+  ax.arrow(get_R_med(pos_brightest_without_surv_probs)['R_med'], 0, 0, 0.01, 
+           label="brightest without surv_probs", color='c', head_width=0.01,
+           head_length=0.003)
+
+  if brightest_dir is None:
+    pos_brightest = read_specific(data, type='brightest', seed=seed, 
+                                  select_by_Rvir=select_by_Rvir)['pos']
+    ax.arrow(get_R_med(pos_brightest)['R_med'],0,0,0.01, label="brightest",
+             color='y',head_width=0.01,head_length=0.003)
+  else:
+    data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv', 
+                                         usecols=['D_rms', 'R_med'])
+    kernel_brightest = gaussian_kde(data_brightest_sampled['R_med'])
+    ax.plot(points, kernel_brightest(points), label=f"brightest",color='y')
+
+  if is_heaviest:
+    pos_heaviest = read_specific(data, type='heaviest', seed=seed, select_by_Rvir=select_by_Rvir)['pos']
+    pos_heaviest_without_surv_probs = read_specific(data, type='heaviest', 
+                                                    is_surv_probs=False, seed=seed, 
+                                                    select_by_Rvir=select_by_Rvir)['pos']
+    ax.arrow(get_R_med(pos_heaviest)['R_med'],0,0,0.01, label="heaviest",color='g',
+             head_width=0.01,head_length=0.2)
+    ax.arrow(get_R_med(pos_heaviest_without_surv_probs)['R_med'],0,0,0.01, 
+             label="heaviest without surv_probs",color='k',head_width=0.01,head_length=0.003)
+
+  if title is not None: 
+      ax.set_title(title)
+  ax.set_xlabel('$R_{\\textrm{med}}$')
+  ax.set_ylabel('$P(R_{\\textrm{med}})$')
+
+  if legend: ax.legend()
+
+  if saveimage:
+    plt.savefig(f"{save_dir}/Rmed_distr_for_{suite_name}.pdf", bbox_inches='tight')
+
+
+
+
+#-------------------------------------------------------------------------
 def plot_circle_around_vector(average_pole, d_angle, ax=None, label=""):
   """plot circle around a vector
 
@@ -379,7 +476,9 @@ def plot_poles_brightest_with_config(suite_name, data, select_by_Rvir=False,
   if saveimage:
     plt.savefig(f"{save_dir}/plot_poles_brightest_with_config_for_{suite_name}.pdf",
                 bbox_inches='tight')
-
+    
+    
+#------------------------------------------------------------------------------
 def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None, 
                               save_dir="", select_by_Rvir=False, seed=None, 
                               num_chosen=11, ax=None, shade_color='slateblue', 
@@ -432,7 +531,7 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None,
     arr_without_surv_probs.append(to_degree(np.min(get_D_sph(chosen_poles_without_surv_probs, isAvg=False)['D_sph'])))
   
   if brightest_dir is None:
-    ax.plot(np.arange(3,num_chosen+1), arr, label='with surv_probs')
+    ax.plot(np.arange(3,num_chosen+1), arr, label=r'$\mathrm{with}\ p_{\rm surv}$')
   else:
     arr = []
     arr_lowers = [[],[],[]]
@@ -451,23 +550,31 @@ def plot_D_sph_vs_k_brightest(suite_name, data, brightest_dir=None,
       arr_lowers[2].append(np.percentile(D_sph, 0.13))
       arr_uppers[2].append(np.percentile(D_sph, 99.87))
     
-    ax.plot(np.arange(3,num_chosen+1), arr, label='with surv_probs', color='g')
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[2], arr_uppers[2], alpha=0.2, color=shade_color)
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[1], arr_uppers[1], alpha=0.25, color=shade_color)
-    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[0], arr_uppers[0], alpha=0.3, color=shade_color)
+    ax.plot(np.arange(3,num_chosen+1), arr, label=r'$\mathrm{with}\ p_{\rm surv}$', color='slateblue')
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[2], arr_uppers[2], 
+                    alpha=0.2, color=shade_color)
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[1], arr_uppers[1], 
+                    alpha=0.25, color=shade_color)
+    ax.fill_between(np.arange(3,num_chosen+1), arr_lowers[0], arr_uppers[0], 
+                    alpha=0.3, color=shade_color)
 
-  ax.plot(np.arange(3,num_chosen+1), arr_without_surv_probs, label='without surv_probs', color='b')
-  ax.plot(np.arange(3,num_chosen+1), arr_MW, label='MW', color='orangered')
+  ax.plot(np.arange(3,num_chosen+1), arr_without_surv_probs, ls='dashed', 
+          label=r'$\mathrm{w/o}\ p_{\rm surv}$', color='darkslateblue')
+  ax.scatter(np.arange(3,num_chosen+1), arr_MW, label='MW',  marker='*', 
+             c='orangered', edgecolor='darkred', s=50)
+  
   if title is not None: 
       ax.set_title(title)
       
-  ax.set_xlabel("k")
-  ax.set_ylabel("$\\Delta_{\\textrm{sph}}$ "+"($^\\circ$)")
+  ax.set_xlim(2.9,11.1)
+  ax.set_xlabel("$k$")
+  ax.set_ylabel(r"$\Delta_{\textrm{sph}}\ (^\circ)$")
 
-  if legend: ax.legend()
+  if legend: 
+      ax.legend(loc='upper left', frameon=False)
 
   if saveimage:
-    plt.savefig(f"{save_dir}/plot_D_sph_vs_k_brightest_3sigma_for_{suite_name}.pdf",
+    plt.savefig(f"{save_dir}/D_sph_vs_k_{suite_name}.pdf",
                 bbox_inches='tight')
     
 def plot_distribution_D_sph_dispersion(suite_name, data_dir, data_surv_probs_dir, 
@@ -953,14 +1060,13 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
       
       types = {X_type: X, Y_type: Y}
 
-      for type_ in types.keys():
-        if type_ == 'D_rms':
+      if type_ == 'D_rms':
           types[type_].append(get_D_rms(data_brightest['pos'])['D_rms'])
-        if type_ == 'R_med':
+      if type_ == 'R_med':
           types[type_].append(get_R_med(data_brightest['pos'])['R_med'])
-        if type_ == 'scaled_D_rms':
+      if type_ == 'scaled_D_rms':
           types[type_].append(get_D_rms(data_brightest['pos'])['D_rms']/get_R_med(data_brightest['pos'])['R_med'])
-        if type_[:6] == 'D_sph_':
+      if type_[:6] == 'D_sph_':
           k = int(type_[6:])
           indices = np.array(list(combinations(np.arange(11),k)))
 
@@ -1049,6 +1155,200 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
 
   if saveimage:
     plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf', 
+                bbox_inches='tight')
+
+#----------------------------------------------------------------------------
+def plot_Rmed_scatter_cat(caterpillar_dir, brightest_dir_template,
+		 save_dir=None, saveimage=False, xlims=None, ylims=None, 
+         legend=True, title=None, 
+		 figsize=(5,5)):
+    
+  if save_dir is None:
+    saveimage = False
+
+  suite_names = config.get_caterpillar_names()
+  
+  select_by_Rvir = False
+
+  X, Xs = [], []
+  Y, Ys = [], []
+
+  X_err = [[],[]]
+  Y_err = [[],[]]
+
+  fig, ax = plt.subplots(figsize=figsize)
+
+  for suite_name in suite_names:
+    print(f"Running for {suite_name}")
+    suite_dir = caterpillar_dir
+    suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
+    brightest_dir = brightest_dir_template.substitute(gendata_dir=config.gendata_dir, catalog='caterpillar')
+      
+    data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
+    X_halo = data_brightest_sampled['R_med']
+    Y_halo = data_brightest_sampled['D_rms']
+
+    Xs.append(np.median(X_halo))
+    Ys.append(np.median(Y_halo))
+
+    X_err[0].append(np.abs(np.percentile(X_halo, 2.5)-np.median(X_halo)))
+    X_err[1].append(np.abs(np.percentile(X_halo, 97.5)-np.median(X_halo)))
+
+    Y_err[0].append(np.abs(np.percentile(Y_halo, 2.5)-np.median(Y_halo)))
+    Y_err[1].append(np.abs(np.percentile(Y_halo, 97.5)-np.median(Y_halo)))
+
+    data = read_halo(suite_name_decorated, suite_dir)
+    data_brightest = read_specific(data, is_surv_probs=False, select_by_Rvir=select_by_Rvir)
+    Y.append(get_D_rms(data_brightest['pos'])['D_rms'])
+    X.append(get_R_med(data_brightest['pos'])['R_med'])
+
+  if len(Xs) > 0:
+    ax.errorbar(Xs, Ys, xerr=X_err, yerr=Y_err, 
+                fmt='.', color='slateblue', alpha=0.3)
+  if len(Xs) > 0:
+    ax.scatter(Xs, Ys, marker='o', s=20, color='slateblue', edgecolor='darkslateblue',
+               label='Caterpillar')
+  if len(X) > 0:
+    ax.scatter(X, Y, marker='o', s=20, color='white', edgecolor='darkslateblue',
+               label='Caterpillar')
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+  X_MW = data_MW['R_med']
+  Y_MW = data_MW['D_rms']
+
+  ax.scatter(X_MW, Y_MW, label='MW', marker='*', c='orangered', 
+             edgecolor='darkred', s=100)
+
+  X_label = r'$R_{\rm med}\rm\ (kpc)$'
+  Y_label = r'$\Delta_{\rm rms}\rm\ (kpc)$'
+  ax.set_xlabel(X_label)
+  ax.set_ylabel(Y_label)
+
+
+  if saveimage:
+    plt.savefig(f'{save_dir}/Rmed_distr_cat.pdf', 
+                bbox_inches='tight')
+
+#----------------------------------------------------------------------------
+def plot_Rmed_cdf(caterpillar_dir, brightest_dir_template,
+		 save_dir=None, saveimage=False, xlims=None, ylims=None, 
+         legend=True, title=None, 
+		 figsize=(5,5)):
+    
+  if save_dir is None:
+    saveimage = False
+
+  suite_names = config.get_caterpillar_names()
+  
+  select_by_Rvir = False
+
+  X, Xs = [], []
+
+  fig, ax = plt.subplots(figsize=figsize)
+
+  for suite_name in suite_names:
+    print(f"Running for {suite_name}")
+    suite_dir = caterpillar_dir
+    suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
+    brightest_dir = brightest_dir_template.substitute(gendata_dir=config.gendata_dir, catalog='caterpillar')
+      
+    data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
+    X_halo = data_brightest_sampled['R_med']
+    Xs.append(X_halo)
+
+    data = read_halo(suite_name_decorated, suite_dir)
+    data_brightest = read_specific(data, is_surv_probs=False, select_by_Rvir=select_by_Rvir)
+    X.append(get_R_med(data_brightest['pos'])['R_med'])
+
+
+  Xs = np.array(Xs).flatten()
+  isort = np.argsort(Xs)
+  ax.plot(Xs[isort], np.arange(1,Xs.size+1)/Xs.size, lw=1.5, c='slateblue', label=r'${\rm with}\ p_{\rm surv}$')
+  X.append(min(X)) # a hack to start cdf at 0 instead of the first value
+  X = np.array(X).flatten()
+  isort = np.argsort(X)
+  ax.plot(X[isort], np.arange(X.size)/(X.size-1), ls='dashed',lw=1.5, c='m', label=r'${\rm w/o}\ p_{\rm surv}$')
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+  X_MW = data_MW['R_med']
+
+
+  ax.annotate("MW", xy=(X_MW, 0.1), xytext=(X_MW-12.5, 0.25), 
+              arrowprops={"arrowstyle":"->", "lw": 3, "color":"orangered"})
+  X_label = r'$R_{\rm med}\rm\ (kpc)$'
+  Y_label = r'$P(<R_{\rm med})$'
+  ax.set_xlabel(X_label)
+  ax.set_ylabel(Y_label)
+
+  ax.set_ylim(0.,1.)
+
+  plt.legend(loc='lower right', frameon=False)
+  if saveimage:
+    plt.savefig(f'{save_dir}/Rmed_cdf_cat.pdf', 
+                bbox_inches='tight')
+
+
+#----------------------------------------------------------------------------
+def plot_Drms_cdf(caterpillar_dir, brightest_dir_template,
+		 save_dir=None, saveimage=False, xlims=None, ylims=None, 
+         legend=True, title=None, 
+		 figsize=(5,5)):
+    
+  if save_dir is None:
+    saveimage = False
+
+  suite_names = config.get_caterpillar_names()
+  
+  select_by_Rvir = False
+
+  X, Xs = [], []
+
+  fig, ax = plt.subplots(figsize=figsize)
+
+  for suite_name in suite_names:
+    print(f"Running for {suite_name}")
+    suite_dir = caterpillar_dir
+    suite_name_decorated = caterpillar_name_template.substitute(suite_name=suite_name)
+    brightest_dir = brightest_dir_template.substitute(gendata_dir=config.gendata_dir, catalog='caterpillar')
+      
+    data_brightest_sampled = pd.read_csv(f'{brightest_dir}/{suite_name}.csv')
+    X_halo = data_brightest_sampled['D_rms']
+    Xs.append(X_halo)
+
+    data = read_halo(suite_name_decorated, suite_dir)
+    data_brightest = read_specific(data, is_surv_probs=False, select_by_Rvir=select_by_Rvir)
+    X.append(get_D_rms(data_brightest['pos'])['D_rms'])
+
+
+  Xs = np.array(Xs).flatten()
+  isort = np.argsort(Xs)
+  ax.plot(Xs[isort], np.arange(1,Xs.size+1)/Xs.size, lw=1.5, c='slateblue', label=r'${\rm with}\ p_{\rm surv}$')
+  X.append(min(X)) # a hack to start cdf at 0 instead of the first value
+  X = np.array(X).flatten()
+  isort = np.argsort(X)
+  ax.plot(X[isort], np.arange(X.size)/(X.size-1), ls='dashed',lw=1.5, c='m', label=r'${\rm w/o}\ p_{\rm surv}$')
+
+  data_MW = get_MW(is_D_rms=True, is_R_med=True, num_D_sph=list(np.arange(3, 12)), num_D_sph_flipped=None)
+
+  X_MW = data_MW['D_rms']
+
+
+  #ax.arrow(X_MW, 0.2,0,-0.1, label="MW",color='orangered', head_width=5,head_length=0.05)
+  #ax.scatter(X_MW, 0.2, label="MW", s=100, color='orangered', marker=r'$\Downarrow$')
+  ax.annotate("MW", xy=(X_MW, 0.1), xytext=(X_MW-6, 0.25), 
+              arrowprops={"arrowstyle":"->", "lw": 3, "color":"orangered"})
+  X_label = r'$\Delta_{\rm rms}\rm\ (kpc)$'
+  Y_label = r'$P(<\Delta_{\rm rms})$'
+  ax.set_xlabel(X_label)
+  ax.set_ylabel(Y_label)
+
+  ax.set_ylim(0.,1.)
+
+  plt.legend(loc='lower right', frameon=False)
+  if saveimage:
+    plt.savefig(f'{save_dir}/Drms_cdf_cat.pdf', 
                 bbox_inches='tight')
 
 #-------------------------------------------------------------------------------
@@ -1151,5 +1451,5 @@ def hist_general(data_dir, brightest_dir=None, X_type='D_sph_11', Y_type='D_rms'
       ax.legend(frameon=False, loc='upper left', ncol=2)
 
   if saveimage:
-    plt.savefig(f'{save_dir}/general_histogram_{X_type}_vs_{Y_type}_with{out}_surv_probs_all_caterpillar_hosts.pdf', 
+    plt.savefig(f'{save_dir}/{X_type}_vs_{Y_type}_with{out}_survprobs_all_cat.pdf', 
                 bbox_inches='tight')
