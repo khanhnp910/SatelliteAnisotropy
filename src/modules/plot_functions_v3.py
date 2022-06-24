@@ -1060,20 +1060,22 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
       
       types = {X_type: X, Y_type: Y}
 
-      if type_ == 'D_rms':
+      for type_ in types.keys():
+        if type_ == 'D_rms':
           types[type_].append(get_D_rms(data_brightest['pos'])['D_rms'])
-      if type_ == 'R_med':
+        if type_ == 'R_med':
           types[type_].append(get_R_med(data_brightest['pos'])['R_med'])
-      if type_ == 'scaled_D_rms':
+        if type_ == 'scaled_D_rms':
           types[type_].append(get_D_rms(data_brightest['pos'])['D_rms']/get_R_med(data_brightest['pos'])['R_med'])
-      if type_[:6] == 'D_sph_':
+        if type_[:6] == 'D_sph_':
           k = int(type_[6:])
           indices = np.array(list(combinations(np.arange(11),k)))
 
           # shape (11 choose k, k, 3)
           chosen_poles = data_brightest['poles'][indices,:]
 
-          types[type_].append(to_degree(np.min(np.around(get_D_sph(chosen_poles)['D_sph'], decimals=3), axis=-1)))
+          types[type_].append(to_degree(np.min(np.around(get_D_sph(chosen_poles)['D_sph'], decimals=3), 
+                                               axis=-1)))
 
   if is_surv_probs:
     if len(X_elvis_isolated) > 0:
@@ -1154,7 +1156,7 @@ def plot_general(elvis_isolated_dir, caterpillar_dir, brightest_dir_template,
       ax.legend(loc='upper left', frameon=False)
 
   if saveimage:
-    plt.savefig(f'{save_dir}/general_plot_{X_type}_vs_{Y_type}_with{out}_surv_probs.pdf', 
+    plt.savefig(f'{save_dir}/{X_type}_vs_{Y_type}_with{out}_survprobs.pdf', 
                 bbox_inches='tight')
 
 #----------------------------------------------------------------------------
@@ -1190,7 +1192,6 @@ def plot_Rmed_scatter_cat(caterpillar_dir, brightest_dir_template,
 
     Xs.append(np.median(X_halo))
     Ys.append(np.median(Y_halo))
-
     X_err[0].append(np.abs(np.percentile(X_halo, 2.5)-np.median(X_halo)))
     X_err[1].append(np.abs(np.percentile(X_halo, 97.5)-np.median(X_halo)))
 
